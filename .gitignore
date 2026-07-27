@@ -1,0 +1,45 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+env/
+*.env
+.env
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- Node / React ---
+node_modules/
+frontend/build/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Model weights / large binaries ---
+*.gguf
+*.pt
+*.pth
+*.onnx
+vision/weights/
+nlp/models/
+
+# --- Data / secrets ---
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+aws_credentials
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Claude Code local settings ---
+.claude/settings.local.json
