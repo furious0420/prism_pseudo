@@ -1,0 +1,146 @@
+[
+  {
+    "case_id": "HC-001",
+    "defect_type": "corrosion",
+    "symptom_description": "Pitting corrosion on the landing gear strut near the lower bearing, approximately 2mm deep, discovered during a scheduled inspection.",
+    "diagnosis": "Localized pitting corrosion consistent with moisture ingress at a worn seal. Depth is within removable limits per the applicable structural repair manual chapter.",
+    "resolution": "Corrosion blended out per AC 43.13-1B corrosion removal procedure, area re-primed and sealed, seal replaced at the lower bearing to prevent recurrence.",
+    "risk_score": "High"
+  },
+  {
+    "case_id": "HC-002",
+    "defect_type": "crack",
+    "symptom_description": "Hairline crack found on the wing spar cap during a scheduled inspection, roughly 15mm long, running spanwise.",
+    "diagnosis": "Fatigue crack at a stress-concentration point near a fastener hole. Non-destructive inspection (dye penetrant) confirmed crack depth was subsurface-limited.",
+    "resolution": "Component referred to engineering for a stop-drill and doubler repair; aircraft grounded until repair approved and completed.",
+    "risk_score": "Critical"
+  },
+  {
+    "case_id": "HC-003",
+    "defect_type": "dent",
+    "symptom_description": "Dent in the fuselage skin, about 40mm across and shallow, no visible cracking, found near a ground-service door.",
+    "diagnosis": "Cosmetic/minor structural dent, most likely from ground equipment contact. Depth-to-diameter ratio within allowable damage limits, no skin cracking detected.",
+    "resolution": "Logged as acceptable damage per allowable-damage chart, no repair required, re-inspected at next scheduled check.",
+    "risk_score": "Low"
+  },
+  {
+    "case_id": "HC-004",
+    "defect_type": "stress corrosion cracking",
+    "symptom_description": "Fine cracking observed on a high-strength steel landing gear component after exposure to de-icing fluid over several seasons.",
+    "diagnosis": "Stress corrosion cracking (SCC) consistent with sustained tensile stress combined with a corrosive environment; typical failure mode for this alloy under these conditions.",
+    "resolution": "Component removed from service and replaced; adjacent components inspected for similar exposure history per fleet campaign directive.",
+    "risk_score": "Critical"
+  },
+  {
+    "case_id": "HC-005",
+    "defect_type": "exfoliation",
+    "symptom_description": "Surface grains lifting and flaking on a 7075-T6 wing skin component, white residue present around fastener heads.",
+    "diagnosis": "Exfoliation corrosion, a form of intergranular attack common in this alloy when protective finish has been compromised over time.",
+    "resolution": "Affected material removed within allowable limits, area treated and re-finished; fastener heads re-sealed to prevent moisture entry.",
+    "risk_score": "High"
+  },
+  {
+    "case_id": "HC-006",
+    "defect_type": "scratch",
+    "symptom_description": "Shallow surface scratch on a cowling panel, roughly 60mm long, does not penetrate the primer layer.",
+    "diagnosis": "Cosmetic scratch from routine handling, no structural significance, does not meet the threshold for a damage report.",
+    "resolution": "Touch-up paint applied, logged in the maintenance record, no further action required.",
+    "risk_score": "Low"
+  },
+  {
+    "case_id": "HC-007",
+    "defect_type": "corrosion",
+    "symptom_description": "White powdery deposit on an aluminium panel near the wheel well, technician unsure if it is corrosion or residue.",
+    "diagnosis": "Surface (Type I) corrosion, an early-stage oxidation product rather than deep pitting; typical of aluminium exposed to runway de-icing chemicals.",
+    "resolution": "Deposit removed with an approved corrosion-removal compound, area inspected under magnification to confirm no pitting beneath, re-primed.",
+    "risk_score": "Medium"
+  },
+  {
+    "case_id": "HC-008",
+    "defect_type": "pitting",
+    "symptom_description": "Multiple small pits found on a hydraulic actuator housing during teardown inspection, individual pits under 1mm deep.",
+    "diagnosis": "Pitting corrosion from long-term exposure to condensation inside the housing; pit depth within acceptable removable limits for this component.",
+    "resolution": "Pits blended and polished per the component maintenance manual, housing passed post-repair dimensional and pressure checks.",
+    "risk_score": "Medium"
+  },
+  {
+    "case_id": "HC-009",
+    "defect_type": "crack",
+    "symptom_description": "Technician query: 'Which inspection method finds subsurface cracks in aluminium?' during a routine structural check with no visible surface damage.",
+    "diagnosis": "No confirmed defect from this query alone; eddy-current or ultrasonic inspection is the appropriate method for detecting subsurface cracking in aluminium structure where surface inspection shows nothing.",
+    "resolution": "Eddy-current inspection scheduled as a precaution; no crack found on follow-up, aircraft returned to service.",
+    "risk_score": "Low"
+  },
+  {
+    "case_id": "HC-010",
+    "defect_type": "deformation",
+    "symptom_description": "Slight bowing observed in a stringer section after a hard landing report, no visible cracking or paint disturbance.",
+    "diagnosis": "Minor permanent deformation consistent with an overload event below the structural damage threshold; no crack initiation detected on close visual and dye-penetrant inspection.",
+    "resolution": "Component measured against engineering tolerance, found within limits, no repair required, documented for trend monitoring.",
+    "risk_score": "Medium"
+  },
+  {
+    "case_id": "HC-011",
+    "defect_type": "discoloration",
+    "symptom_description": "Yellowish discoloration around a rivet line on an engine cowling, no pitting or raised material visible.",
+    "diagnosis": "Heat-related discoloration, likely from proximity to the exhaust path rather than corrosion; no material loss detected.",
+    "resolution": "Area cleaned and inspected, no corrosion present, logged as cosmetic, re-checked at next inspection interval.",
+    "risk_score": "Low"
+  },
+  {
+    "case_id": "HC-012",
+    "defect_type": "corrosion",
+    "symptom_description": "Corrosion detected around rivet heads and in skin crevices near an engine exhaust trail, moderate surface staining.",
+    "diagnosis": "Corrosion accelerated by exhaust residue chemistry pooling in crevices; a known problem area per the general visual corrosion inspection guide.",
+    "resolution": "Corrosion removed per approved procedure, crevices resealed, exhaust trail area added to the enhanced-frequency inspection list for this airframe.",
+    "risk_score": "High"
+  },
+  {
+    "case_id": "HC-013",
+    "defect_type": "crack",
+    "symptom_description": "Service-induced crack found in the fuselage skin near a window cutout during a heavy check, approximately 8mm long.",
+    "diagnosis": "Fatigue crack originating from a stress riser at the cutout radius, a known life-limiting location for this airframe type.",
+    "resolution": "Crack stop-drilled and a doubler installed per the structural repair manual; life-limit tracking updated for the affected zone.",
+    "risk_score": "Critical"
+  },
+  {
+    "case_id": "HC-014",
+    "defect_type": "corrosion",
+    "symptom_description": "Fastener hole showing slight elongation and light corrosion staining on a wing panel during a routine borescope check.",
+    "diagnosis": "Combination of fretting corrosion and minor hole elongation from fastener movement; within repairable limits.",
+    "resolution": "Hole oversized and a larger fastener installed per acceptable repair methods, corrosion cleaned from surrounding material, area resealed.",
+    "risk_score": "Medium"
+  },
+  {
+    "case_id": "HC-015",
+    "defect_type": "corrosion",
+    "symptom_description": "Corrosion found on a magnesium component near the auxiliary power unit, technician noted a strong chemical odor during inspection.",
+    "diagnosis": "Active corrosion on a magnesium alloy, which is especially susceptible to rapid attack once the protective coating is breached; treated as urgent given the material.",
+    "resolution": "Component removed and sent for overhaul rather than field repair, given magnesium's corrosion sensitivity; replacement coated component installed.",
+    "risk_score": "High"
+  },
+  {
+    "case_id": "HC-016",
+    "defect_type": "dent",
+    "symptom_description": "Dent with a shallow tear in a cowling panel from a suspected bird strike, roughly 50mm across with a small break in the material.",
+    "diagnosis": "Combined impact damage: a dent with a minor material tear that exceeds the allowable-damage chart's clean-dent limits because of the break.",
+    "resolution": "Panel repaired with a doubler patch per the applicable structural repair manual, rather than treated as cosmetic since the tear disqualified it from the simple allowable-damage path.",
+    "risk_score": "Medium"
+  },
+  {
+    "case_id": "HC-017",
+    "defect_type": "crack",
+    "symptom_description": "Cracks noted in sharp radii near a threaded landing-gear component during overhaul, technician flagged for immediate review.",
+    "diagnosis": "Cracking at a stress-concentration radius on a threaded part, a documented high-risk location where cracks propagate quickly under cyclic load.",
+    "resolution": "Component rejected and replaced outright rather than repaired, per guidance that cracked threaded/high-stress parts are not field-repairable.",
+    "risk_score": "Critical"
+  },
+  {
+    "case_id": "HC-018",
+    "defect_type": "corrosion",
+    "symptom_description": "Technician query: 'surface corrosion removal procedure' after finding light general corrosion across a wing walk area.",
+    "diagnosis": "Widespread but shallow surface corrosion, typical of a wing walk area subject to foot traffic wearing through protective finish over time.",
+    "resolution": "Corrosion removed with the daily/light-duty method per the general corrosion inspection guide, area re-coated with anti-slip protective finish.",
+    "risk_score": "Medium"
+  }
+]
