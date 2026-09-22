@@ -56,6 +56,16 @@ class CorpusMissing(RuntimeError):
 
 
 _db: Optional[Chroma] = None
+_emb: Optional[HuggingFaceEmbeddings] = None
+
+
+def _embeddings() -> HuggingFaceEmbeddings:
+    """One shared MiniLM instance. Day 8 embeds cases with the same model, and
+    loading it twice would double both memory and startup time."""
+    global _emb
+    if _emb is None:
+        _emb = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    return _emb
 
 
 def _get_db() -> Chroma:
@@ -71,7 +81,7 @@ def _get_db() -> Chroma:
             )
         _db = Chroma(
             persist_directory=str(CHROMA_DIR),
-            embedding_function=HuggingFaceEmbeddings(model_name=EMBED_MODEL),
+            embedding_function=_embeddings(),
         )
     return _db
 
