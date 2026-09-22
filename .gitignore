@@ -26,6 +26,11 @@ yarn-error.log*
 *.onnx
 vision/weights/
 nlp/models/
+backend/chroma_db/
+backend/logs/*.mp4
+
+# --- Backend runtime artifacts ---
+backend/venv/
 
 # --- Data / secrets ---
 .env
