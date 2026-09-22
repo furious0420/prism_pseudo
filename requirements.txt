@@ -1,0 +1,277 @@
+# =============================================================================
+# PRISM — Stage 2 dependency manifest
+# Last verified: 2026-09-21 (Day 1)
+#
+# This file is pip-installable as-is:   pip install -r requirements.txt
+# Everything that is NOT a pip package is documented in Section 0 as comments.
+#
+# STATUS LEGEND
+#   [HAVE]  installed and verified working
+#   [NEED]  not installed yet, required by a specific day
+#   [CHECK] probably present on the dev machine, unverified — confirm before use
+#   [IF]    conditional, only needed if a specific check comes back a certain way
+#
+# Read Section 0 and Section 1 BEFORE running pip install. Install order matters
+# for exactly one package (torch) and getting it wrong is silent, not loud.
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 0 — TOOLS THAT ARE NOT PIP PACKAGES
+# These cannot be installed by this file. Install them by hand.
+# =============================================================================
+#
+# [HAVE]  Python 3.10–3.12     Required range. 3.13+ has no llama-cpp-python
+#                              prebuilt CUDA wheels yet. Check: python --version
+# [CHECK] Node.js 18+ / npm    Needed Day 1 + Day 9 for the Vite frontend.
+#                              Check: node --version && npm --version
+# [CHECK] Git                  Check: git --version
+#
+# [NEED]  AWS CLI v2           Day 5 (D5-02 step 1) runs `aws s3 cp ... --recursive`.
+#                              This is SEPARATE from boto3 — boto3 does not give
+#                              you the `aws` command. Nothing in the tracker
+#                              installs it.
+#                              Get: https://awscli.amazonaws.com/AWSCLIV2.msi
+#                              Then: aws configure   (same prism-dev keys as .env)
+#
+# [NEED]  Screen recorder      Day 12 (D12-02) is a MANDATORY deliverable — the
+#                              backup demo video — and names no tool.
+#                              Windows has Xbox Game Bar built in: press Win+G.
+#                              Use OBS Studio only if you need a webcam inset.
+#
+# [CHECK] NVIDIA driver + CUDA Needed for GPU on Days 2, 3, 6.
+#                              Check: nvidia-smi   (shows driver + CUDA version)
+#                              If this command is not found, you are CPU-only —
+#                              say so in the handoff notes, it changes Day 6.
+#
+# [CHECK] Ollama               Your home directory has a .ollama folder, so this
+#                              may already be installed and working.
+#                              IF IT IS, IT IS THE EASIEST PATH FOR DAY 2 — see
+#                              the Day 2 section below. Check: ollama --version
+#
+# [IF]    Visual Studio Build  ONLY if you compile llama-cpp-python from source.
+#         Tools (C++ workload) Avoid this — use the prebuilt wheel instead
+#                              (Day 2 section). A source build on Windows is a
+#                              multi-hour detour you do not have budget for.
+#
+# [IF]    Tesseract OCR        ONLY if scripts/pdf_probe.py reports SCANNED.
+#                              ocrmypdf (below) needs the tesseract binary on PATH.
+#                              Get: https://github.com/UB-Mannheim/tesseract/wiki
+#
+# [IF]    LabelImg / Label     ONLY worth considering if the Day 1 dataset check
+#         Studio               says "no labels" AND the image count is small
+#                              (< ~300). Labeling locally can beat standing up a
+#                              SageMaker Ground Truth private workforce. Compare
+#                              both before committing on Day 5.
+
+
+# =============================================================================
+# SECTION 1 — INSTALL ORDER (read this, it is the only ordering trap)
+# =============================================================================
+#
+# If you have an NVIDIA GPU, install torch FIRST, from NVIDIA's index, BEFORE
+# running this file. Both ultralytics (Day 6) and sentence-transformers (Day 3)
+# depend on torch, and if either installs it first you get the DEFAULT PyPI
+# wheel, which on Windows is CPU-ONLY. Nothing errors. Everything just runs many
+# times slower, and you will waste Day 6 concluding the laptop cannot cope when
+# the real problem is that torch never saw the GPU.
+#
+#   Step 1 (GPU machines only — match cu121 to your nvidia-smi CUDA version):
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+#   Step 2 (everyone):
+#     pip install -r requirements.txt
+#
+#   Step 3 (verify — do not skip, this is the whole point of step 1):
+#     python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+#     Must print True on a GPU machine. If it prints False, uninstall torch and
+#     redo step 1.
+#
+# torch is deliberately NOT pinned in this file so step 1 wins. It arrives as a
+# dependency of ultralytics/sentence-transformers if you skip step 1.
+
+
+# =============================================================================
+# DAY 1 — Foundations                                          STATUS: [HAVE]
+# Installed, frozen and verified: /health returns 200, unknown route 404,
+# wrong method 405, CORS preflight returns the Vite origin, and a headless
+# browser confirmed the frontend-to-Flask fetch works with no console errors.
+# =============================================================================
+Flask==3.1.3
+flask-cors==6.0.5
+python-dotenv==1.2.3
+boto3==1.43.98
+
+
+# =============================================================================
+# DAY 2 — Local LLM inference                                  STATUS: [NEED]
+# =============================================================================
+#
+# PLAN A — Ollama (recommended, and you may already have it).
+#   No pip build step, no C++ toolchain, no CUDA flags. Fully local, so the
+#   offline demo story is unaffected.
+#     ollama pull phi3:mini
+#   Then have backend/models/llm.py call http://localhost:11434/api/generate
+#   behind the same `def generate(prompt: str) -> str` signature D2-01 specifies.
+#   The rest of the pipeline never knows which backend is behind it.
+#   Needs only `requests`, which is already listed under Day 11 below.
+#
+# PLAN B — llama-cpp-python (the tracker's original route).
+#   Uncomment the line below, but install it with the PREBUILT CUDA WHEEL, not
+#   a source build:
+#     pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+#   (swap cu121 for your CUDA version: 11.8, 12.1-12.5, 13.0, 13.2 are published)
+#
+#   WARNING — D2-01 step 1 is wrong in two ways if you build from source:
+#     1. The flag was renamed. -DLLAMA_CUBLAS=on is obsolete; it is now
+#        -DGGML_CUDA=on. The old flag is silently ignored, so you get a
+#        CPU-only build that appears to have succeeded.
+#     2. CMAKE_ARGS="..." is bash syntax. In Windows PowerShell it is
+#        $env:CMAKE_ARGS="-DGGML_CUDA=on"
+#
+# llama-cpp-python==0.3.35        # uncomment for Plan B
+
+# Model download — D2-01 says "download from Hugging Face" with no mechanism.
+# This gives you the `hf` CLI:
+#   hf download microsoft/Phi-3-mini-4k-instruct-gguf Phi-3-mini-4k-instruct-q4.gguf
+# The file is ~2.4 GB. Not needed if you take Plan A.
+huggingface-hub==1.32.0
+
+
+# =============================================================================
+# DAY 3 — Retrieval                                            STATUS: [NEED]
+#
+# IMPORTANT: D3-01 as written WILL NOT RUN on current LangChain. Verified
+# against a clean install on 2026-09-21. Three corrections:
+#
+#   1. `from langchain.text_splitter import RecursiveCharacterTextSplitter`
+#      raises ModuleNotFoundError. This is a hard failure, not a warning.
+#      Use: from langchain_text_splitters import RecursiveCharacterTextSplitter
+#
+#   2. `from langchain_community.vectorstores import Chroma` is deprecated and
+#      marked for removal. langchain-community as a whole is being sunset.
+#      Use: from langchain_chroma import Chroma
+#
+#   3. `db.persist()` (D3-01 step 7) is a deprecated no-op — Chroma has
+#      auto-persisted since 0.4.x. It does not error, it just does nothing.
+#      Delete the line. Persistence across restarts was verified without it.
+#
+#   Also: HuggingFaceEmbeddings moved out of langchain_community into
+#   langchain-huggingface. Use: from langchain_huggingface import HuggingFaceEmbeddings
+#
+# The corrected import chain below was tested end to end with zero deprecation
+# warnings: split -> embed -> store -> reopen after restart -> similarity_search.
+# =============================================================================
+langchain==1.4.2
+langchain-core==1.6.3
+langchain-text-splitters==1.1.2
+langchain-chroma==1.1.0
+langchain-huggingface==1.2.2
+chromadb==1.5.9
+sentence-transformers==6.1.0
+pdfplumber==0.11.10
+
+# NOT listed. langchain-community is being sunset and the corrected imports
+# above do not need it. Do not add it back.
+# langchain-community==0.4.2
+
+
+# =============================================================================
+# DAY 4 — Grounded generation loop                             STATUS: [HAVE]
+# No new dependencies. Day 4 wires Day 3's retriever into Day 2's generate().
+# =============================================================================
+
+
+# =============================================================================
+# DAY 5 — CV data readiness                                    STATUS: [NEED]
+# Needs the AWS CLI from Section 0, not a pip package.
+#
+# NOTE: a Ground Truth PRIVATE workforce auto-creates an Amazon Cognito user
+# pool. If the AWS account restricts Cognito, job creation fails. Verify before
+# Day 5, not during it.
+# =============================================================================
+
+
+# =============================================================================
+# DAY 6 — CV detection                                         STATUS: [NEED]
+# Re-read Section 1 before installing this — ultralytics pulls torch, and if it
+# pulls the CPU build your GPU sits idle for the rest of the project.
+# ultralytics brings numpy, Pillow, opencv-python and matplotlib with it.
+#
+# Windows note: ultralytics declares torch!=2.4.0 on win32, so that one version
+# is excluded. Any current torch is fine — just do not pin to 2.4.0.
+# Verified compatible: ultralytics 8.4.157 requires numpy>=1.23.0 (no upper
+# bound off macOS), so the numpy pin below does not conflict.
+# =============================================================================
+ultralytics==8.4.157
+
+
+# =============================================================================
+# DAY 7 — Risk scoring                                         STATUS: [HAVE]
+# Pure Python, standard library only. No dependencies.
+#
+# NON-TOOL FLAG: "SAE J1979" (D7-01) is the OBD-II AUTOMOTIVE diagnostics
+# standard. Aviation maintenance uses ATA chapters and MSG-3. If there are
+# aviation people on the jury this is the kind of detail that draws a question
+# you do not want. Either justify it in one sentence or swap the reference.
+# =============================================================================
+
+
+# =============================================================================
+# DAY 8 — Case memory                                          STATUS: [NEED]
+# D8-01 calls sklearn.metrics.pairwise.cosine_similarity.
+#
+# CORRECTION (2026-09-21): scikit-learn DOES arrive transitively —
+# sentence-transformers 6.1.0 declares scikit-learn>=1.1.0 unconditionally, so
+# installing the Day 3 stack pulls it in. An earlier note in this file said
+# otherwise; that was wrong. It is pinned explicitly anyway, because Day 8's
+# code imports it directly and depending on someone else's transitive dep is
+# how you get a surprise ImportError the day a dependency drops it.
+#
+# CONTENT GAP, NOT A TOOL: nothing in the 13-day tracker CREATES
+# history_cases.json. D8-01 opens by describing its structure as though it
+# already exists. Someone needs to author ~15-20 plausible cases (case_id,
+# defect_type, symptom_description, diagnosis, resolution, risk_score) before
+# Day 8 starts. Assign this now, not on the morning of Day 8.
+# =============================================================================
+scikit-learn==1.9.1
+numpy==2.4.6
+
+
+# =============================================================================
+# DAY 9 — Backend and frontend                                 STATUS: [HAVE]
+# flask-cors is already installed from Day 1 and the cross-origin path is
+# already proven by the Day 1 health-check page. Pillow arrives with ultralytics
+# and is what validates the uploaded image before YOLOv8 sees it.
+# Frontend dependencies are managed by npm in frontend/package.json, not here.
+# =============================================================================
+
+
+# =============================================================================
+# DAYS 10-11 — Integration, reliability, metrics               STATUS: [NEED]
+# requests is used by D11-02 step 3 to time the /diagnose endpoint end to end,
+# and by Day 2 Plan A if you go the Ollama route.
+# =============================================================================
+requests==2.34.2
+
+
+# =============================================================================
+# DAYS 12-13 — Buffer, freeze, handoff                         STATUS: [NEED]
+# Needs the screen recorder from Section 0, not a pip package.
+# =============================================================================
+
+
+# =============================================================================
+# CONDITIONAL — only if scripts/pdf_probe.py reports SCANNED
+# Uncomment, and install the Tesseract binary from Section 0 first.
+# Local OCR keeps the PoC fully offline, which Amazon Textract would not.
+#   ocrmypdf input.pdf output.pdf
+# =============================================================================
+# ocrmypdf==17.12.1
+
+
+# =============================================================================
+# DEV-ONLY — not needed at demo runtime
+# openpyxl is only for scripting edits to PRISM_Task_Tracker.xlsx.
+# =============================================================================
+# openpyxl==3.1.5
