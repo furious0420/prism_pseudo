@@ -168,6 +168,8 @@ def _run(
         "risk_score": (scored["band"] if has_risk_input
                        else (overall["level"] if overall else None)),
         "diagnosis": diagnosis.get("diagnosis", ""),
+        "likely_defect": diagnosis.get("likely_defect"),
+        "actions": diagnosis.get("actions", []),
         "citations": diagnosis.get("citations", []),
         "sources": diagnosis.get("sources", []),
         "grounded": diagnosis.get("grounded"),

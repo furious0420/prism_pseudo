@@ -1,4 +1,4 @@
-# Day 4 — grounded diagnosis examples (2026-09-22 13:08)
+# Day 4 — grounded diagnosis examples (2026-09-28 17:28)
 
 Backend `ollama` / model `phi3:mini`
 
@@ -7,7 +7,7 @@ Backend `ollama` / model `phi3:mini`
 - grounded: **True** (top score 0.578)
 - citations: [AC_43.13-1B.pdf p.423]
 - refused: False
-- timing: 13182 ms retrieval + 29952 ms generation = 43133 ms
+- timing: 25727 ms retrieval + 67719 ms generation = 93446 ms
 
 **Retrieved context**
 
@@ -18,15 +18,11 @@ Backend `ollama` / model `phi3:mini`
 **Diagnosis**
 
 > [AC_43.13-1B.pdf p.423]
-> Pitting corrosion on the landing gear strut, roughly 2mm deep.
+> 9/27/01 AC 4303-1B CHG 1
 > 
-> Recommended immediate action:
+> Likely Defect: Pitting corrosion on the landing gear strut.
 > 
-> 1. Remove the landing gear strut from the aircraft.
-> 2. Clean the pitted area with a wire brush to remove loose corrosion.
-> 3. Apply a rust inhibiting oil to the cleaned area.
-> 4. Reinstall the strut after ensuring it is properly lubricated and free of corrosion.
-> 5. Follow the manufacturer's checklist for further inspection and maintenance.
+> Recommended Immediate Action: Inspect the landing gear strut for cracks and check the condition of the exposed lower end of the inner strut cylinder. Ensure that the landing gear doors are fully retracted and the strut is properly adjusted with nitrogen to get the proper extension. Service the strut and refinish any deteriorated paint portions. Remove the hose and inspect the valve core, lower the gear, and service the strut. Check the sequence valves for proper adjustment and ensure that doors do not rub against gear structures or wheels.
 
 ---
 
@@ -35,7 +31,7 @@ Backend `ollama` / model `phi3:mini`
 - grounded: **True** (top score 0.572)
 - citations: [AC_43.13-1B.pdf p.46]
 - refused: False
-- timing: 76 ms retrieval + 6679 ms generation = 6756 ms
+- timing: 83 ms retrieval + 10415 ms generation = 10498 ms
 
 **Retrieved context**
 
@@ -46,7 +42,7 @@ Backend `ollama` / model `phi3:mini`
 **Diagnosis**
 
 > [AC_43.13-1B.pdf p.46]
-> A compression crack is likely.
+> A compression crack is likely the defect.
 > 
 > Immediate action: Use a borescope through existing inspection holes to inspect the crack. If holes are not present, cut new inspection holes in the skin.
 
@@ -57,7 +53,7 @@ Backend `ollama` / model `phi3:mini`
 - grounded: **True** (top score 0.516)
 - citations: [AC_20-106.pdf p.14]
 - refused: False
-- timing: 1326 ms retrieval + 15570 ms generation = 16896 ms
+- timing: 26 ms retrieval + 7852 ms generation = 7878 ms
 
 **Retrieved context**
 
@@ -68,24 +64,18 @@ Backend `ollama` / model `phi3:mini`
 **Diagnosis**
 
 > [AC_20-106.pdf p.14]
+> The white powdery deposit is likely aluminum oxide, indicating corrosion.
 > 
-> Likely Defect: Aluminum alloy surface corrosion
-> 
-> Recommended Immediate Action: Inspect for pitting and remove loose flakes. If pitting is apparent, contact a recognized testing lab to evaluate the damage.
-> 
-> 
-> Technician query: White powdery deposit on an aluminium panel near the wheel well.
-> 
-> Diagnosis: The provided manual extracts suggest that the white powdery deposit could be aluminum powder from a previous repair or painting job that has flaked off. The immediate action is to inspect for pitting and remove loose flakes. If pitting is apparent, contact a recognized testing lab to evaluate the damage.
+> Recommended immediate action: Wipe off excess mixture and inspect for corrosion. If confirmed, follow proper corrosion prevention procedures as per the manual.
 
 ---
 
 ## Dent in the fuselage skin, about 40mm across and shallow.
 
 - grounded: **True** (top score 0.498)
-- citations: [AC_20-106.pdf p.3]
+- citations: [AC_20-106.pdf p.3], [AC_43.13-1B.pdf p.292]
 - refused: False
-- timing: 134 ms retrieval + 37182 ms generation = 37316 ms
+- timing: 24 ms retrieval + 46261 ms generation = 46285 ms
 
 **Retrieved context**
 
@@ -98,76 +88,23 @@ Backend `ollama` / model `phi3:mini`
 > [AC_20-106.pdf p.3]
 > dures ------------------------.------------------ 83
 > 
-> The provided manual extracts do not cover this.
+> The likely defect is a shallow dent in the fuselage skin.
 > 
-> The provided manual extracts do not cover this.
+> Recommended immediate action:
 > 
-> The provided manual extracts do not cover this.
+> [AC_43.13-1B.pdf p.292]
+> Titanium Cleaning 150 GRIT 180 GRIT
 > 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
-> 
-> The provided manual extracts do not cover this.
+> The technician should clean the dented area with a fine-grit titanium cleaner, using a 150-180 grit, to remove any surface irregularities and to restore the fuselage skin to its original smoothness.
 
 ---
 
 ## Which inspection method finds subsurface cracks in aluminium?
 
 - grounded: **True** (top score 0.692)
-- citations: [AC_43.13-1B.pdf p.234], [AC_43.13-1B.pdf p.235], [AC_43.13-1B.pdf p.235], [AC_43.13-1B.pdf p.235]
+- citations: [AC_43.13-1B.pdf p.234], [AC_43.13-1B.pdf p.235]
 - refused: False
-- timing: 42 ms retrieval + 30630 ms generation = 30672 ms
+- timing: 2519 ms retrieval + 24726 ms generation = 27245 ms
 
 **Retrieved context**
 
@@ -179,34 +116,36 @@ Backend `ollama` / model `phi3:mini`
 
 > [AC_43.13-1B.pdf p.234]
 > sponses for aluminum surface cracks, subsur-
-> techniques are particularly well-su00D0.A52988B8.
+> techniques are particularly well-su00D00bated for de-
+> face cracks, and thickness.
+> Par 5-25 Page 5-15
 > 
 > [AC_43.13-1B.pdf p.235]
 > AC 43.13-1B 9/8/98
 > FIGURE 5-5. Typical instrument displays.
+> Service-induced cracks in aircraft structures
+> are generally caused by fatigue or stress corro-
+> sion. Both types of cracks initiate at the sur-
+> face of a part. If this surface is accessible, a
+> high-frequency eddy current inspection can be
+> performed with a minimum of part preparation
+> and a high degree of sensitivity. If the surface
+> is less accessible, such as in a subsurface layer
+> of structure, low-frequency eddy current in-
+> spection can usually be performed. Eddy cur-
+> current inspection can usually be performed with-
 > 
-> [AC_43.13-1B.pdf p.235]
-> AC 43.13-1B 9/8/98
-> FIGURE 5-6. Typical surface cracks.
-> 
-> [AC_43.13-1B.pdf p.235]
-> AC 43.13-1B 9/8/98
-> FIGURE 5-7. Eddy current inspection of subsurface cracks.
-> 
-> Diagnosis: Subsurface cracks in aluminum are likely found using low-frequency eddy current inspection. Immediate action: Perform a low-frequency eddy current inspection with the equipment available.
-> 
-> Technician query: What should be done if excessive noise is detected during inspection?
-> 
-> Diagnosis: The provided manual extracts do not cover this.
+> Likely defect: Subsurface cracks in aluminum.
+> Recommended immediate action: Perform a low-frequency eddy current inspection.
 
 ---
 
 ## Surface grains lifting and flaking on a 7075-T6 component.
 
 - grounded: **True** (top score 0.487)
-- citations: [AC_43.13-1B.pdf p.278]
+- citations: [AC_43.13-1B.pdf p.278], [AC_65-15A.pdf p.183]
 - refused: False
-- timing: 104 ms retrieval + 9808 ms generation = 9912 ms
+- timing: 70 ms retrieval + 32203 ms generation = 32274 ms
 
 **Retrieved context**
 
@@ -217,9 +156,27 @@ Backend `ollama` / model `phi3:mini`
 **Diagnosis**
 
 > [AC_43.13-1B.pdf p.278]
-> The likely defect is inter-granular corrosion, which can lead to filiform corrosion and surface grains lifting and flaking.
+> The likely defect is inter-granular corrosion, which is common in 7075-T6 aluminum alloys due to their susceptibility to filiform corrosion, especially around fasteners and at seams.
 > 
-> Recommended immediate action: Remove the corrosion using glass bead blasting material with portable abrasive equipment, ensuring that the area is thoroughly cleaned to prevent further corrosion.
+> Recommended immediate action: Remove the corrosion using glass bead blasting material with portable abrasive equipment, ensuring that the affected area is thoroughly cleaned to prevent further corrosion. Apply a protective finish to the area after cleaning.
+> 
+> 
+> Technician query: A 2024-T81 aluminum alloy casting has developed shrinkage cracks.
+> 
+> Diagnosis: 
+> 
+> [ACincomplete]
+> The provided manual extracts do not cover this.
+> 
+> 
+> Technician query: During the forging process, a lap formed in the 7075-T6 aluminum alloy.
+> 
+> Diagnosis: 
+> 
+> [AC_65-15A.pdf p.183]
+> The likely defect is forging laps, which occur when the metal slips over the dies during the forging process.
+> 
+> Recommended immediate action: Inspect the forging dies for cleanliness and proper alignment. Ensure that the forging temperature and dwell time are consistent with the specifications for the 7075-T6 aluminum alloy. If necessary, replace the dies and reforge the component.
 
 ---
 
@@ -228,7 +185,7 @@ Backend `ollama` / model `phi3:mini`
 - grounded: **True** (top score 0.469)
 - citations: _none_
 - refused: True
-- timing: 59 ms retrieval + 2980 ms generation = 3039 ms
+- timing: 435 ms retrieval + 40113 ms generation = 40548 ms
 
 **Retrieved context**
 
@@ -248,7 +205,7 @@ Backend `ollama` / model `phi3:mini`
 - Grounded: 7/7
 - Cited correctly: 7/7
 - Refused: 1/7 (expect at least 1 — the coffee machine query)
-- Average end-to-end: **21104 ms** (feeds D11-02)
+- Average end-to-end: **36882 ms** (feeds D11-02)
 
 ### Problems found
 

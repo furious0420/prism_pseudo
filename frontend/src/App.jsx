@@ -307,6 +307,19 @@ export default function App() {
               // Not a failure — there was simply nothing to work from. Saying so
               // plainly beats "No diagnosis produced", which reads like a crash.
               <p className="needs-input">{result.needs_input}</p>
+            ) : result.actions?.length > 0 ? (
+              // The model sometimes emits a "Likely defect / numbered steps"
+              // shape on its own. Render it structured when it does, and fall
+              // back to the raw prose when it doesn't — the prompt does not
+              // force the format (see _parse_structure in models/rag.py).
+              <>
+                {result.likely_defect && (
+                  <p className="likely-defect">{result.likely_defect}</p>
+                )}
+                <ol className="actions">
+                  {result.actions.map((a, i) => <li key={i}>{a}</li>)}
+                </ol>
+              </>
             ) : (
               <p className="diagnosis">{result.diagnosis || "No diagnosis produced."}</p>
             )}
