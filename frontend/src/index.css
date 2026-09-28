@@ -319,3 +319,18 @@ ul.cases.history li { padding: 14px 0; }
   color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line);
 }
 .footer-note strong { color: var(--fg); }
+
+/* ---------- live progress (SSE stage reveal) ---------- */
+ul.progress { list-style: none; margin: 0 0 12px; padding: 0; }
+ul.progress li {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 9px 0; border-bottom: 1px solid var(--line);
+  transition: opacity .3s;
+}
+ul.progress li:last-child { border-bottom: 0; }
+ul.progress li.waiting { opacity: .4; }
+ul.progress li.done .pmark { color: var(--ok); }
+.pmark {
+  flex: none; width: 16px; text-align: center; font-weight: 700;
+  color: var(--muted); line-height: 1.5;
+}

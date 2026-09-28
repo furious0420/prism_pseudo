@@ -23,6 +23,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [pipeline, setPipeline] = useState(null);
   const [telemetry, setTelemetry] = useState({});
+  const [liveStages, setLiveStages] = useState([]);
   const timer = useRef(null);
 
   // Polled, not one-shot: if the backend dies mid-demo the header says so
@@ -70,21 +71,64 @@ export default function App() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setLiveStages([]);
     setElapsed(0);
+
+    const fd = new FormData();
+    fd.append("query", query);
+    if (file) fd.append("image", file);
+    for (const { key } of TELEMETRY_FIELDS) {
+      const v = String(telemetry[key] ?? "").trim();
+      if (v) fd.append(key, v);
+    }
+
     try {
-      const fd = new FormData();
-      fd.append("query", query);
-      if (file) fd.append("image", file);
-      for (const { key } of TELEMETRY_FIELDS) {
-        const v = String(telemetry[key] ?? "").trim();
-        if (v) fd.append(key, v);
+      const res = await fetch(`${API}/diagnose/stream`, { method: "POST", body: fd });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || d.error || `HTTP ${res.status}`);
       }
-      const res = await fetch(`${API}/diagnose`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
-      setResult(data);
+      if (!res.body) throw new Error("no-stream");
+
+      // Parse SSE off the response body. EventSource can't be used here —
+      // it's GET-only and this is a multipart POST.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let finished = false;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const blocks = buf.split("\n\n");
+        buf = blocks.pop() ?? "";           // keep the trailing partial block
+        for (const block of blocks) {
+          let ev = "message";
+          let data = null;
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) ev = line.slice(6).trim();
+            else if (line.startsWith("data:")) {
+              try { data = JSON.parse(line.slice(5).trim()); } catch { /* ignore */ }
+            }
+          }
+          if (!data) continue;
+          if (ev === "stage") setLiveStages((s) => [...s, data]);
+          else if (ev === "result") { setResult(data); finished = true; }
+          else if (ev === "error") throw new Error(data.detail || data.error);
+        }
+      }
+      if (!finished) throw new Error("The stream ended before a result arrived.");
     } catch (err) {
-      setError(err.message);
+      // Insurance for a live demo: if streaming fails for any reason, fall
+      // back to the plain endpoint rather than showing the user an error.
+      try {
+        const res2 = await fetch(`${API}/diagnose`, { method: "POST", body: fd });
+        const d2 = await res2.json();
+        if (!res2.ok) throw new Error(d2.detail || d2.error || `HTTP ${res2.status}`);
+        setResult(d2);
+      } catch (err2) {
+        setError(err2.message || err.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -229,6 +273,7 @@ export default function App() {
       </div>
 
       <div className="col-output">
+      {busy && <LiveProgress stages={liveStages} elapsed={elapsed} />}
       {!result && !error && !busy && (
         <div className="card placeholder">
           <p className="muted">
@@ -381,6 +426,49 @@ export default function App() {
         ChromaDB retrieval and YOLOv8 detection, no cloud calls in the diagnosis path.
       </p>
     </main>
+  );
+}
+
+const STAGE_SEQUENCE = [
+  ["detection", "Vision — scanning the image"],
+  ["risk", "Risk — scoring telemetry and defects"],
+  ["diagnosis", "Knowledge — retrieving manuals, then generating"],
+  ["case_memory", "Case memory — finding similar past repairs"],
+];
+
+function LiveProgress({ stages, elapsed }) {
+  const doneByName = Object.fromEntries(stages.map((s) => [s.name, s]));
+  const nextPending = STAGE_SEQUENCE.find(([n]) => !doneByName[n]);
+  return (
+    <section className="card">
+      <h2>Running · {elapsed.toFixed(1)}s</h2>
+      <ul className="progress">
+        {STAGE_SEQUENCE.map(([name, labelText]) => {
+          const done = doneByName[name];
+          const active = nextPending && nextPending[0] === name;
+          return (
+            <li key={name} className={done ? "done" : active ? "active" : "waiting"}>
+              <span className="pmark">
+                {done ? (done.skipped ? "–" : "✓") : active ? <span className="spinner" /> : ""}
+              </span>
+              <div>
+                <strong>{labelText}</strong>
+                {done && (
+                  <span className="muted small">
+                    {" "}{done.skipped ? "skipped" : `${done.ms.toFixed(0)} ms`}
+                  </span>
+                )}
+                {done?.note && <div className="muted small">{done.note}</div>}
+                {done?.error && <div className="errtext">{done.error}</div>}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="muted small">
+        Generation is the slow step — it runs entirely on this machine.
+      </p>
+    </section>
   );
 }
 

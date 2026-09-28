@@ -4,17 +4,19 @@
   GET  /health/llm        is a local LLM reachable (D2)
   GET  /health/pipeline   which stages are ready (D9)
   POST /diagnose          the full pipeline (D9-01)
+  POST /diagnose/stream   same, streamed stage-by-stage (SSE)
   GET  /corpus/documents  which manuals are indexed (frontend Manuals tab)
   GET  /corpus/search     search the manual index directly, no LLM
   GET  /memory/cases      all case-memory entries (frontend Case History tab)
   POST /memory/log-case   append a resolved case (frontend "Mark as Resolved")
 """
+import json
 import os
 import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, current_app, jsonify, request
+from flask import Flask, Response, current_app, jsonify, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
@@ -99,6 +101,76 @@ def create_app() -> Flask:
                     os.remove(tmp_path)
                 except OSError:
                     app.logger.warning("could not remove temp upload %s", tmp_path)
+
+    @app.post("/diagnose/stream")
+    def diagnose_stream_endpoint():
+        """Same as POST /diagnose, but emits each stage as it completes (SSE).
+
+        Generation dominates the wall clock, so without this the UI sits blank
+        for the whole run. The upload has to be read and saved BEFORE the
+        generator starts: the request context is gone by the time Flask pulls
+        from it, so touching request.* inside would raise.
+        """
+        query = (request.form.get("query") or "").strip()
+        upload = request.files.get("image")
+        telemetry = {
+            key: request.form.get(key)
+            for key in TELEMETRY_FIELDS
+            if (request.form.get(key) or "").strip()
+        }
+
+        if not query and (upload is None or not upload.filename) and not telemetry:
+            return jsonify({
+                "error": "empty_request",
+                "detail": "Provide a symptom description, an image, telemetry readings, "
+                          "or any combination.",
+            }), 400
+
+        tmp_path = None
+        if upload is not None and upload.filename:
+            name = secure_filename(upload.filename)
+            ext = Path(name).suffix.lower()
+            if ext not in ALLOWED_IMAGE_EXT:
+                return jsonify({
+                    "error": "unsupported_file_type",
+                    "detail": f"'{ext or name}' is not an image. "
+                              f"Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXT))}",
+                }), 400
+            fd, tmp_path = tempfile.mkstemp(suffix=ext, prefix="prism_")
+            os.close(fd)
+            upload.save(tmp_path)
+
+        logger = app.logger
+
+        def events():
+            from models.pipeline import run_diagnosis_stream
+            try:
+                for kind, data in run_diagnosis_stream(
+                    image_path=tmp_path, query=query, telemetry=telemetry
+                ):
+                    yield f"event: {kind}\ndata: {json.dumps(data)}\n\n"
+            except Exception as e:                      # noqa: BLE001
+                # The stream has already started, so a 500 is no longer
+                # available — report the failure as a final event instead of
+                # dropping the connection with no explanation.
+                logger.exception("stream failed")
+                yield ("event: error\ndata: "
+                       + json.dumps({"error": "internal_error", "detail": str(e)})
+                       + "\n\n")
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except OSError:
+                        logger.warning("could not remove temp upload %s", tmp_path)
+
+        return Response(events(), mimetype="text/event-stream", headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # Stops nginx-style proxies buffering the stream into one lump,
+            # which would defeat the whole point.
+            "X-Accel-Buffering": "no",
+        })
 
     @app.get("/corpus/documents")
     def corpus_documents_endpoint():
