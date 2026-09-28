@@ -72,11 +72,30 @@ export default function App() {
 
   return (
     <main className="wrap">
-      <header>
-        <h1>PRISM</h1>
-        <p className="sub">Aircraft defect diagnosis, grounded in FAA maintenance manuals</p>
-      </header>
+      <div className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <span className="mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 2 3 7v10l9 5 9-5V7z" stroke="#fff" strokeWidth="1.6"
+                      strokeLinejoin="round" fill="rgba(255,255,255,.08)" />
+                <path d="M12 2v20M3 7l9 5 9-5" stroke="#fff" strokeWidth="1.2"
+                      strokeLinejoin="round" opacity=".75" />
+              </svg>
+            </span>
+            <div>
+              <h1>PRISM</h1>
+              <p className="sub">Aircraft defect diagnosis, grounded in FAA maintenance manuals</p>
+            </div>
+          </div>
+          <span className="status-pill">
+            <span className="blip" aria-hidden="true" />
+            Offline · Local LLM
+          </span>
+        </div>
+      </div>
 
+      <div className="content">
       {pipeline && <Readiness p={pipeline} />}
 
       <form onSubmit={onSubmit} className="card">
@@ -224,6 +243,12 @@ export default function App() {
           </section>
         </>
       )}
+      </div>
+
+      <p className="footer-note">
+        <strong>PRISM</strong> runs entirely on this machine — Phi-3 Mini (Ollama),
+        ChromaDB retrieval and YOLOv8 detection, no cloud calls in the diagnosis path.
+      </p>
     </main>
   );
 }
