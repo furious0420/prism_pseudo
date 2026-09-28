@@ -216,6 +216,22 @@ ul.factors li:last-child { border-bottom: 0; }
 .fpts { float: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
 .disclaimer { margin: 10px 0 0; opacity: .75; font-style: italic; }
 
+/* ---------- retrieved passages ---------- */
+.source-item { padding: 12px 0; }
+.source-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.passage {
+  margin: 8px 0 4px; font-size: 0.875rem; line-height: 1.55; color: var(--muted);
+  padding-left: 11px; border-left: 2px solid var(--line);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.passage.open { -webkit-line-clamp: unset; display: block; }
+.linkish {
+  width: auto; margin: 0; padding: 0; background: none; border: 0; box-shadow: none;
+  color: var(--teal-500); font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.linkish:hover { text-decoration: underline; box-shadow: none; }
+button.secondary.full { width: 100%; margin-top: 8px; }
+
 /* ---------- tabs ---------- */
 .tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
 .tab {

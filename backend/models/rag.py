@@ -105,7 +105,12 @@ class DiagnosisResult:
             "diagnosis": self.diagnosis,
             "citations": self.citations,
             "sources": [
-                {"source": h["source"], "page": h["page"], "score": h["score"]}
+                # `text` is the actual retrieved passage. Without it the UI can
+                # say WHICH page was cited but not WHAT it said, which is the
+                # one thing that proves the answer is grounded rather than
+                # recalled — the most probe-worthy claim in the whole demo.
+                {"source": h["source"], "page": h["page"], "score": h["score"],
+                 "text": h["text"]}
                 for h in self.hits
             ],
             "grounded": self.grounded,

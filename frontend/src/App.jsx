@@ -92,6 +92,21 @@ export default function App() {
 
   const risk = result?.overall_risk;
   const failedStages = (result?.stages ?? []).filter((s) => !s.ok);
+  // No image supplied at all -> don't show a detection card; that's not an
+  // empty state, there was simply nothing to detect on.
+  const imageSkipped = (result?.stages ?? []).some((s) => s.name === "detection" && s.skipped);
+
+  function reset() {
+    setQuery("");
+    setFile(null);
+    setPreview(null);
+    setTelemetry({});
+    setResult(null);
+    setError(null);
+    setElapsed(0);
+    const picker = document.getElementById("img");
+    if (picker) picker.value = "";
+  }
 
   return (
     <main className="wrap">
@@ -196,6 +211,11 @@ export default function App() {
         <button type="submit" disabled={busy}>
           {busy ? `Diagnosing… ${elapsed.toFixed(1)}s` : "Diagnose"}
         </button>
+        {(result || error || query || file || hasTelemetry) && !busy && (
+          <button type="button" className="secondary ghost full" onClick={reset}>
+            Clear and start a new diagnosis
+          </button>
+        )}
         {busy && (
           <p className="muted small">
             Running detection, retrieval and local generation. Typically 8–10 seconds.
@@ -263,42 +283,53 @@ export default function App() {
             )}
           </section>
 
-          {result.sources?.length > 0 && (
-            <section className="card">
-              <h2>Manual passages used</h2>
+          <section className="card">
+            <h2>Manual passages used</h2>
+            {result.sources?.length > 0 ? (
               <ul className="sources">
-                {result.sources.map((s, i) => (
-                  <li key={i}>
-                    <code>{s.source} p.{s.page}</code>
-                    <span className="muted"> similarity {s.score.toFixed(3)}</span>
-                  </li>
-                ))}
+                {result.sources.map((s, i) => <SourceItem key={i} s={s} />)}
               </ul>
-            </section>
-          )}
+            ) : (
+              <p className="muted small">
+                No manual passage met the confidence threshold for this query, so
+                nothing was handed to the model to reason from.
+              </p>
+            )}
+          </section>
 
-          {result.detections?.length > 0 && (
+          {!imageSkipped && (
             <section className="card">
               <h2>Detected in image</h2>
-              {result.detections[0].pretrained && (
-                <p className="warn">
-                  Pretrained model — generic object classes, not aircraft defects.
+              {result.detections?.length > 0 ? (
+                <>
+                  {result.detections[0].pretrained && (
+                    <p className="warn">
+                      Pretrained model — generic object classes, not aircraft defects.
+                    </p>
+                  )}
+                  <ul className="dets">
+                    {result.detections.map((d, i) => (
+                      <li key={i}>
+                        <strong>{d.label}</strong>
+                        <span className="muted"> {(d.confidence * 100).toFixed(1)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="muted small">
+                  Nothing detected in this image. The detector is still the
+                  pretrained model, which knows generic objects rather than
+                  aircraft defects — the diagnosis below came from your
+                  description.
                 </p>
               )}
-              <ul className="dets">
-                {result.detections.map((d, i) => (
-                  <li key={i}>
-                    <strong>{d.label}</strong>
-                    <span className="muted"> {(d.confidence * 100).toFixed(1)}%</span>
-                  </li>
-                ))}
-              </ul>
             </section>
           )}
 
-          {result.similar_cases?.length > 0 && (
-            <section className="card">
-              <h2>Similar past cases</h2>
+          <section className="card">
+            <h2>Similar past cases</h2>
+            {result.similar_cases?.length > 0 ? (
               <ul className="cases">
                 {result.similar_cases.map((c) => (
                   <li key={c.case_id}>
@@ -308,8 +339,13 @@ export default function App() {
                   </li>
                 ))}
               </ul>
-            </section>
-          )}
+            ) : (
+              <p className="muted small">
+                No similar past cases yet. Resolve this diagnosis above and it
+                becomes the first one for a symptom like this.
+              </p>
+            )}
+          </section>
 
           <section className="card">
             <h2>Pipeline</h2>
@@ -343,6 +379,27 @@ export default function App() {
         ChromaDB retrieval and YOLOv8 detection, no cloud calls in the diagnosis path.
       </p>
     </main>
+  );
+}
+
+function SourceItem({ s }) {
+  const [open, setOpen] = useState(false);
+  const text = s.text || "";
+  return (
+    <li className="source-item">
+      <div className="source-head">
+        <code>{s.source} p.{s.page}</code>
+        <span className="muted small"> similarity {s.score.toFixed(3)}</span>
+      </div>
+      {text && (
+        <>
+          <p className={`passage${open ? " open" : ""}`}>{text}</p>
+          <button type="button" className="linkish" onClick={() => setOpen(!open)}>
+            {open ? "Show less" : "Show full passage"}
+          </button>
+        </>
+      )}
+    </li>
   );
 }
 
