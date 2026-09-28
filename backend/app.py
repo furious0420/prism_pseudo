@@ -1,9 +1,11 @@
 """PRISM backend — Flask API.
 
-  GET  /health           liveness, instant
-  GET  /health/llm       is a local LLM reachable (D2)
-  GET  /health/pipeline  which stages are ready (D9)
-  POST /diagnose         the full pipeline (D9-01)
+  GET  /health            liveness, instant
+  GET  /health/llm        is a local LLM reachable (D2)
+  GET  /health/pipeline   which stages are ready (D9)
+  POST /diagnose          the full pipeline (D9-01)
+  GET  /memory/cases      all case-memory entries (frontend Case History tab)
+  POST /memory/log-case   append a resolved case (frontend "Mark as Resolved")
 """
 import os
 import tempfile
@@ -83,6 +85,47 @@ def create_app() -> Flask:
                     os.remove(tmp_path)
                 except OSError:
                     app.logger.warning("could not remove temp upload %s", tmp_path)
+
+    @app.get("/memory/cases")
+    def list_cases_endpoint():
+        from models.case_memory import list_cases
+        return jsonify({"cases": list_cases()}), 200
+
+    @app.post("/memory/log-case")
+    def log_case_endpoint():
+        """JSON body: {defect_type?, symptom_description, diagnosis, resolution,
+        risk_score?}. defect_type/risk_score are optional — a text-only
+        diagnosis has no detected defect type."""
+        body = request.get_json(silent=True) or {}
+        symptom_description = (body.get("symptom_description") or "").strip()
+        diagnosis = (body.get("diagnosis") or "").strip()
+        resolution = (body.get("resolution") or "").strip()
+
+        missing = [f for f, v in (
+            ("symptom_description", symptom_description),
+            ("diagnosis", diagnosis),
+            ("resolution", resolution),
+        ) if not v]
+        if missing:
+            return jsonify({
+                "error": "missing_fields",
+                "detail": f"Required: {', '.join(missing)}.",
+            }), 400
+
+        from models.case_memory import log_case
+        try:
+            case = log_case(
+                defect_type=(body.get("defect_type") or "").strip(),
+                symptom_description=symptom_description,
+                diagnosis=diagnosis,
+                resolution=resolution,
+                risk_score=(body.get("risk_score") or "").strip(),
+            )
+        except ValueError as e:
+            # A corrupt history_cases.json is a data problem, not a server
+            # crash — 400 with the parse error, not a 500.
+            return jsonify({"error": "invalid_case_file", "detail": str(e)}), 400
+        return jsonify(case), 200
 
     @app.errorhandler(HTTPException)
     def handle_http_error(err):

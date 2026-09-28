@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
-const RISK_ORDER = { Low: 0, Medium: 1, High: 2, Critical: 3 };
+const POLL_MS = 12000;
 
 export default function App() {
+  const [tab, setTab] = useState("diagnose");
   const [query, setQuery] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -15,14 +16,21 @@ export default function App() {
   const [pipeline, setPipeline] = useState(null);
   const timer = useRef(null);
 
-  // Show which stages are ready before the user submits, so a missing corpus or
-  // a cold LLM is visible up front rather than as a confusing partial result.
-  useEffect(() => {
-    fetch(`${API}/health/pipeline`)
+  // Polled, not one-shot: if the backend dies mid-demo the header says so
+  // within POLL_MS instead of every request just failing silently. Cheap —
+  // every stage /health/pipeline reports is a cached lookup, not recomputation.
+  const refreshPipeline = useCallback(() => {
+    return fetch(`${API}/health/pipeline`)
       .then((r) => r.json())
       .then(setPipeline)
       .catch(() => setPipeline({ unreachable: true }));
   }, []);
+
+  useEffect(() => {
+    refreshPipeline();
+    const id = setInterval(refreshPipeline, POLL_MS);
+    return () => clearInterval(id);
+  }, [refreshPipeline]);
 
   // A diagnosis takes ~8-9s on the demo laptop. Without a running counter that
   // reads as a hang, which is the worst thing that can happen in front of a jury.
@@ -88,14 +96,34 @@ export default function App() {
               <p className="sub">Aircraft defect diagnosis, grounded in FAA maintenance manuals</p>
             </div>
           </div>
-          <span className="status-pill">
-            <span className="blip" aria-hidden="true" />
-            Offline · Local LLM
-          </span>
+          <StatusPill p={pipeline} />
         </div>
       </div>
 
       <div className="content">
+        <nav className="tabs" role="tablist">
+          {[
+            ["diagnose", "Diagnose"],
+            ["history", "Case History"],
+            ["status", "System Status"],
+          ].map(([id, labelText]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              className={`tab${tab === id ? " active" : ""}`}
+              onClick={() => setTab(id)}
+            >
+              {labelText}
+            </button>
+          ))}
+        </nav>
+
+      {tab === "history" && <CaseHistory />}
+      {tab === "status" && <SystemStatus p={pipeline} onRefresh={refreshPipeline} />}
+
+      {tab === "diagnose" && <>
       {pipeline && <Readiness p={pipeline} />}
 
       <form onSubmit={onSubmit} className="card">
@@ -181,6 +209,9 @@ export default function App() {
                 Cited: {result.citations.map((c) => <code key={c}>{c}</code>)}
               </p>
             )}
+            {!result.refused && !result.needs_input && result.diagnosis && (
+              <ResolveCase result={result} query={query} />
+            )}
           </section>
 
           {result.sources?.length > 0 && (
@@ -253,6 +284,7 @@ export default function App() {
           </section>
         </>
       )}
+      </>}
       </div>
 
       <p className="footer-note">
@@ -260,6 +292,201 @@ export default function App() {
         ChromaDB retrieval and YOLOv8 detection, no cloud calls in the diagnosis path.
       </p>
     </main>
+  );
+}
+
+function StatusPill({ p }) {
+  let cls = "status-pill";
+  let text = "Checking…";
+  if (p?.unreachable) {
+    cls += " down";
+    text = "Backend unreachable";
+  } else if (p) {
+    const notReady = ["llm", "corpus", "detector", "case_memory"]
+      .filter((k) => p[k] && !p[k].available).length;
+    if (notReady === 0) {
+      text = "Local · All systems ready";
+    } else {
+      cls += " degraded";
+      text = `Local · ${notReady} stage${notReady > 1 ? "s" : ""} not ready`;
+    }
+  }
+  return (
+    <span className={cls}>
+      <span className="blip" aria-hidden="true" />
+      {text}
+    </span>
+  );
+}
+
+const STAGE_LABELS = [
+  ["llm", "Local LLM"],
+  ["corpus", "Manual corpus"],
+  ["detector", "Defect detector"],
+  ["case_memory", "Case memory"],
+];
+
+function SystemStatus({ p, onRefresh }) {
+  if (!p) return <div className="card"><p className="muted">Checking backend…</p></div>;
+  if (p.unreachable) {
+    return (
+      <div className="card err">
+        <strong>Backend unreachable.</strong> Start it with <code>python app.py</code> in{" "}
+        <code>backend/</code>. This view retries automatically every 12 seconds.
+      </div>
+    );
+  }
+  return (
+    <section className="card">
+      <h2>Pipeline stages</h2>
+      <ul className="statuses">
+        {STAGE_LABELS.map(([key, labelText]) => {
+          const v = p[key] || {};
+          const detail = v.available
+            ? [v.model, v.chunks != null && `${v.chunks} chunks`,
+               v.cases != null && `${v.cases} cases`,
+               v.device && `on ${v.device}`,
+               v.pretrained === true && "pretrained (not fine-tuned)"]
+              .filter(Boolean).join(" · ")
+            : v.reason;
+          return (
+            <li key={key}>
+              <span className={v.available ? "dot ok" : "dot bad"} />
+              <strong>{labelText}</strong>
+              <span className="muted"> {v.available ? "ready" : "not ready"}</span>
+              {detail && <div className="muted small">{detail}</div>}
+            </li>
+          );
+        })}
+      </ul>
+      <button type="button" className="secondary" onClick={onRefresh}>Refresh now</button>
+    </section>
+  );
+}
+
+function CaseHistory() {
+  const [cases, setCases] = useState(null);
+  const [filter, setFilter] = useState("");
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/memory/cases`)
+      .then((r) => r.json())
+      .then((d) => setCases(d.cases || []))
+      .catch((e) => setErr(e.message));
+  }, []);
+
+  if (err) return <div className="card err"><strong>Could not load cases.</strong> {err}</div>;
+  if (!cases) return <div className="card"><p className="muted">Loading cases…</p></div>;
+
+  const needle = filter.trim().toLowerCase();
+  const shown = needle
+    ? cases.filter((c) =>
+        [c.case_id, c.defect_type, c.symptom_description, c.diagnosis, c.resolution]
+          .some((f) => (f || "").toLowerCase().includes(needle)))
+    : cases;
+
+  return (
+    <section className="card">
+      <h2>Case history · {cases.length} cases</h2>
+      <input
+        className="filter"
+        type="search"
+        value={filter}
+        placeholder="Filter by defect type, symptom, resolution…"
+        onChange={(e) => setFilter(e.target.value)}
+      />
+      {shown.length === 0 && <p className="muted">No cases match “{filter}”.</p>}
+      <ul className="cases history">
+        {shown.map((c) => (
+          <li key={c.case_id}>
+            <div className="case-head">
+              <strong>{c.case_id}</strong>
+              <span className="tag">{c.defect_type}</span>
+              {c.risk_score && (
+                <span className={`tag risk-tag r-${String(c.risk_score).toLowerCase()}`}>
+                  {c.risk_score}
+                </span>
+              )}
+            </div>
+            <div>{c.symptom_description}</div>
+            {c.diagnosis && <div className="muted small">{c.diagnosis}</div>}
+            {c.resolution && <div className="muted small"><em>Fix:</em> {c.resolution}</div>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ResolveCase({ result, query }) {
+  const [open, setOpen] = useState(false);
+  const [resolution, setResolution] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(null);
+  const [err, setErr] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!resolution.trim()) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch(`${API}/memory/log-case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          defect_type: result.detections?.[0]?.label || "unspecified",
+          symptom_description: query,
+          diagnosis: result.diagnosis,
+          resolution,
+          risk_score: result.risk_score || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+      setSaved(data.case_id);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (saved) {
+    return (
+      <p className="resolved-ok">
+        Logged as <strong>{saved}</strong> — it will surface in future similar-case lookups.
+      </p>
+    );
+  }
+  if (!open) {
+    return (
+      <button type="button" className="secondary" onClick={() => setOpen(true)}>
+        Mark as resolved
+      </button>
+    );
+  }
+  return (
+    <form className="resolve-form" onSubmit={submit}>
+      <label htmlFor="res">What fix was applied, and what was the outcome?</label>
+      <textarea
+        id="res"
+        rows={2}
+        value={resolution}
+        placeholder="e.g. Corrosion blended out per AC 43.13-1B, area re-primed and sealed."
+        onChange={(e) => setResolution(e.target.value)}
+      />
+      {err && <p className="warn">{err}</p>}
+      <div className="resolve-actions">
+        <button type="submit" className="secondary" disabled={saving || !resolution.trim()}>
+          {saving ? "Saving…" : "Save to case memory"}
+        </button>
+        <button type="button" className="secondary ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

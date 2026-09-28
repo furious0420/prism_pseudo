@@ -142,5 +142,13 @@
     "diagnosis": "Widespread but shallow surface corrosion, typical of a wing walk area subject to foot traffic wearing through protective finish over time.",
     "resolution": "Corrosion removed with the daily/light-duty method per the general corrosion inspection guide, area re-coated with anti-slip protective finish.",
     "risk_score": "Medium"
+  },
+  {
+    "case_id": "HC-019",
+    "defect_type": "unspecified",
+    "symptom_description": "Blistering paint over a suspected corrosion bloom on the aft pressure bulkhead.",
+    "diagnosis": "[AC_43.13-1B.pdf p.298]\nBlistering paint over a suspected corrosion bloom on the aft pressure bulkhead is likely due to exfoliation corrosion. The recommended immediate action is to remove the corrosion products using a chemical conversion coating, as per the guidelines for removing heavy corrosion products. After the corrosion is removed, the area should be thoroughly cleaned and the edges of the old coating roughened to ensure adherence of the new finish. Then, apply the epoxy topcoat directly to the damaged area, followed by a clear topcoat sealant.",
+    "resolution": "Paint stripped, corrosion bloom removed and area re-primed; bulkhead cleared for return to service.",
+    "risk_score": ""
   }
 ]

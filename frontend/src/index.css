@@ -159,6 +159,76 @@ ul.stages li {
 .needs-input { margin: 0; color: var(--warn); }
 .hint { margin: 10px 0 0; font-size: 0.875rem; color: var(--warn); }
 
+/* ---------- tabs ---------- */
+.tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+.tab {
+  width: auto; margin: 0; padding: 9px 16px; border-radius: 9px;
+  background: transparent; border: 1px solid transparent; box-shadow: none;
+  color: var(--muted); font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.tab:hover:not(.active) { color: var(--fg); background: var(--card); box-shadow: none; }
+.tab.active {
+  background: var(--card); border-color: var(--line); color: var(--fg);
+  box-shadow: var(--card-shadow);
+}
+.tab.active::after {
+  content: ""; display: block; height: 2px; margin: 7px -4px -4px;
+  border-radius: 2px; background: var(--teal-500);
+}
+
+/* ---------- header pill states ---------- */
+.status-pill.degraded {
+  background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.35); color: #fcd34d;
+}
+.status-pill.degraded .blip { background: #fcd34d; box-shadow: 0 0 0 3px rgba(251,191,36,.18); }
+.status-pill.down {
+  background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.4); color: #fca5a5;
+}
+.status-pill.down .blip { background: #fca5a5; box-shadow: 0 0 0 3px rgba(248,113,113,.2); }
+
+/* ---------- secondary buttons ---------- */
+button.secondary {
+  width: auto; margin-top: 14px; padding: 9px 16px; font-size: 0.875rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+  box-shadow: none; font-weight: 600;
+}
+button.secondary:hover:not(:disabled) {
+  border-color: var(--teal-500); color: var(--teal-500); box-shadow: none;
+}
+button.secondary.ghost { border-color: transparent; color: var(--muted); }
+
+/* ---------- system status ---------- */
+ul.statuses { list-style: none; margin: 0; padding: 0; }
+ul.statuses li { padding: 11px 0; border-bottom: 1px solid var(--line); }
+ul.statuses li:last-child { border-bottom: 0; }
+
+/* ---------- case history ---------- */
+.filter {
+  width: 100%; padding: 10px 12px; margin-bottom: 6px; font: inherit; font-size: 0.9rem;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg);
+}
+.filter:focus { outline: none; border-color: var(--teal-500); box-shadow: 0 0 0 3px rgba(13,148,136,.15); }
+.case-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.tag {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line);
+  color: var(--muted);
+}
+.risk-tag.r-low { color: var(--r-low); background: var(--r-low-bg); border-color: transparent; }
+.risk-tag.r-medium { color: var(--r-med); background: var(--r-med-bg); border-color: transparent; }
+.risk-tag.r-high { color: var(--r-high); background: var(--r-high-bg); border-color: transparent; }
+.risk-tag.r-critical { color: var(--r-crit); background: var(--r-crit-bg); border-color: transparent; }
+ul.cases.history li { padding: 14px 0; }
+
+/* ---------- resolve-a-case ---------- */
+.resolve-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.resolve-form label { font-size: 0.85rem; }
+.resolve-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.resolved-ok {
+  margin: 16px 0 0; padding: 10px 14px; border-radius: 9px;
+  background: var(--r-low-bg); color: var(--r-low); font-size: 0.9rem;
+}
+
 .footer-note {
   max-width: 760px; margin: 8px auto 0; padding: 16px 16px 0; text-align: center;
   color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line);
