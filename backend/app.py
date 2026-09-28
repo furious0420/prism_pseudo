@@ -4,6 +4,8 @@
   GET  /health/llm        is a local LLM reachable (D2)
   GET  /health/pipeline   which stages are ready (D9)
   POST /diagnose          the full pipeline (D9-01)
+  GET  /corpus/documents  which manuals are indexed (frontend Manuals tab)
+  GET  /corpus/search     search the manual index directly, no LLM
   GET  /memory/cases      all case-memory entries (frontend Case History tab)
   POST /memory/log-case   append a resolved case (frontend "Mark as Resolved")
 """
@@ -97,6 +99,31 @@ def create_app() -> Flask:
                     os.remove(tmp_path)
                 except OSError:
                     app.logger.warning("could not remove temp upload %s", tmp_path)
+
+    @app.get("/corpus/documents")
+    def corpus_documents_endpoint():
+        from models.retrieval import CorpusMissing, documents
+        try:
+            return jsonify({"documents": documents()}), 200
+        except CorpusMissing as e:
+            return jsonify({"error": "corpus_missing", "detail": str(e)}), 503
+
+    @app.get("/corpus/search")
+    def corpus_search_endpoint():
+        """Search the manual index directly, without running the LLM — lets you
+        see exactly what retrieval returns for a query."""
+        q = (request.args.get("q") or "").strip()
+        if not q:
+            return jsonify({"error": "empty_query", "detail": "Provide ?q=<search text>."}), 400
+        try:
+            k = min(max(int(request.args.get("k", 5)), 1), 20)
+        except ValueError:
+            k = 5
+        from models.retrieval import CorpusMissing, search
+        try:
+            return jsonify({"query": q, "hits": search(q, k=k)}), 200
+        except CorpusMissing as e:
+            return jsonify({"error": "corpus_missing", "detail": str(e)}), 503
 
     @app.get("/memory/cases")
     def list_cases_endpoint():

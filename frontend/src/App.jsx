@@ -134,6 +134,7 @@ export default function App() {
         <nav className="tabs" role="tablist">
           {[
             ["diagnose", "Diagnose"],
+            ["manuals", "Manuals"],
             ["history", "Case History"],
             ["status", "System Status"],
           ].map(([id, labelText]) => (
@@ -150,6 +151,7 @@ export default function App() {
           ))}
         </nav>
 
+      {tab === "manuals" && <div className="narrow"><Manuals /></div>}
       {tab === "history" && <div className="narrow"><CaseHistory /></div>}
       {tab === "status" && (
         <div className="narrow"><SystemStatus p={pipeline} onRefresh={refreshPipeline} /></div>
@@ -499,6 +501,94 @@ function SystemStatus({ p, onRefresh }) {
       </ul>
       <button type="button" className="secondary" onClick={onRefresh}>Refresh now</button>
     </section>
+  );
+}
+
+function Manuals() {
+  const [docs, setDocs] = useState(null);
+  const [err, setErr] = useState(null);
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState(null);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/corpus/documents`)
+      .then((r) => r.json())
+      .then((d) => (d.error ? setErr(d.detail || d.error) : setDocs(d.documents || [])))
+      .catch((e) => setErr(e.message));
+  }, []);
+
+  async function search(e) {
+    e.preventDefault();
+    if (!q.trim()) return;
+    setSearching(true);
+    try {
+      const r = await fetch(`${API}/corpus/search?q=${encodeURIComponent(q)}&k=5`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || d.error);
+      setHits(d.hits || []);
+    } catch (e2) {
+      setErr(e2.message);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  if (err) return <div className="card err"><strong>Corpus unavailable.</strong> {err}</div>;
+
+  const totalChunks = (docs || []).reduce((n, d) => n + d.chunks, 0);
+
+  return (
+    <>
+      <section className="card">
+        <h2>Indexed manuals{docs ? ` · ${totalChunks.toLocaleString()} passages` : ""}</h2>
+        {!docs ? (
+          <p className="muted"><span className="spinner" /> Reading the index…</p>
+        ) : (
+          <ul className="sources">
+            {docs.map((d) => (
+              <li key={d.source}>
+                <code>{d.source}</code>
+                <span className="muted small">
+                  {" "}{d.chunks.toLocaleString()} passages · {d.max_page} pages
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="muted small disclaimer">
+          Public FAA advisory circulars, embedded locally with MiniLM and stored
+          in ChromaDB on this machine. Nothing is fetched at query time.
+        </p>
+      </section>
+
+      <section className="card">
+        <h2>Search the manuals directly</h2>
+        <p className="muted small" style={{ marginTop: -6, marginBottom: 10 }}>
+          Retrieval only — no LLM. This is exactly what the diagnosis step is
+          handed before it writes anything.
+        </p>
+        <form onSubmit={search} className="search-row">
+          <input
+            className="filter"
+            type="search"
+            value={q}
+            placeholder="e.g. exfoliation corrosion treatment"
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <button type="submit" className="secondary" disabled={searching || !q.trim()}>
+            {searching ? "Searching…" : "Search"}
+          </button>
+        </form>
+        {hits && (
+          hits.length ? (
+            <ul className="sources">
+              {hits.map((h, i) => <SourceItem key={i} s={h} />)}
+            </ul>
+          ) : <p className="muted small">No passages matched.</p>
+        )}
+      </section>
+    </>
   );
 }
 
