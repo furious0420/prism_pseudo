@@ -109,7 +109,17 @@ export default function App() {
         />
 
         <label htmlFor="img">Photo (optional)</label>
-        <input id="img" type="file" accept="image/*" onChange={onFile} />
+        <div className="file-row">
+          <input id="img" type="file" accept="image/*" onChange={onFile} className="file-input-native" />
+          <label htmlFor="img" className="file-btn">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M4 13.5V15a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 16 15v-1.5M10 13V4m0 0 3 3m-3-3-3 3"
+                    stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Choose photo
+          </label>
+          <span className="file-name muted small">{file ? file.name : "No photo attached"}</span>
+        </div>
         {preview && <img className="preview" src={preview} alt="Upload preview" />}
         {file && !query.trim() && (
           <p className="hint">
