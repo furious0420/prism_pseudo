@@ -1,0 +1,254 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0D1F3C;font-family:'Segoe UI',Arial,sans-serif}
+.shell{display:grid;grid-template-columns:200px 1fr;height:600px}
+.sidebar{background:#091629;border-right:0.5px solid #1E3A5C;display:flex;flex-direction:column;padding:16px 0}
+.logo{padding:0 16px 18px;border-bottom:0.5px solid #1E3A5C}
+.logo-name{font-size:18px;font-weight:700;color:#fff;letter-spacing:3px}
+.logo-sub{font-size:9px;color:#0A8A7A;letter-spacing:1px;margin-top:2px}
+.nav{padding:12px 0}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#8FA3B1}
+.nav-item.active{color:#fff;background:#0D2A45;border-left:2px solid #0A8A7A}
+.main{background:#0F2236;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#091629;border-bottom:0.5px solid #1E3A5C;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-title{font-size:13px;font-weight:600;color:#fff}
+.badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:600;transition:all .8s}
+.badge.online{background:#1A0A0A;color:#E24B4A;border:0.5px solid #E24B4A}
+.badge.offline{background:#0A2A1E;color:#0A8A7A;border:0.5px solid #0A8A7A}
+.netmon{font-size:10px;color:#3A5A72;transition:all .8s}
+.netmon.zero{color:#0A8A7A}
+.body{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:14px 18px;overflow:hidden;flex:1}
+.panel{background:#091629;border:0.5px solid #1E3A5C;border-radius:8px;padding:14px}
+.panel-title{font-size:9px;color:#0A8A7A;letter-spacing:2px;font-weight:600;margin-bottom:10px}
+.inp-label{font-size:10px;color:#8FA3B1;margin-bottom:4px}
+.inp-box{background:#0D2A45;border:0.5px solid #1E3A5C;border-radius:5px;padding:6px 8px;font-size:11px;color:#fff;margin-bottom:8px;min-height:28px}
+.photo-zone{background:#0D2A45;border:0.5px dashed #1E6A5A;border-radius:5px;padding:14px;text-align:center;margin-bottom:8px;transition:all .6s}
+.photo-zone.loaded{border-style:solid;border-color:#0A8A7A;background:#0A2A1E}
+.ptext{font-size:11px;color:#8FA3B1;transition:color .3s}
+.photo-zone.loaded .ptext{color:#0A8A7A}
+.telem-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px}
+.telem-box{background:#0D2A45;border:0.5px solid #1E3A5C;border-radius:5px;padding:5px 6px;font-size:11px;color:#fff;text-align:center}
+.telem-lbl{font-size:9px;color:#3A5A72;text-align:center;margin-top:2px}
+.btn{width:100%;padding:9px;border:none;border-radius:5px;color:#fff;font-size:12px;font-weight:600;letter-spacing:1px;font-family:'Segoe UI',Arial,sans-serif;background:#0A8A7A}
+.btn.loading{background:#064d45;color:#0A8A7A}
+.output-col{display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.out-card{background:#091629;border:0.5px solid #1E3A5C;border-radius:7px;padding:11px;opacity:0;transform:translateY(10px);transition:opacity .8s,transform .8s}
+.out-card.show{opacity:1;transform:translateY(0)}
+.out-card.hl{border-color:#0A8A7A}
+.out-title{font-size:9px;color:#0A8A7A;letter-spacing:2px;font-weight:600;margin-bottom:7px}
+.tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;margin-right:4px;margin-bottom:3px}
+.tg{background:#0A2A1E;color:#0A8A7A;border:0.5px solid #0A8A7A}
+.tr{background:#1A0A0A;color:#E24B4A;border:0.5px solid #E24B4A}
+.cit{background:#0D2A45;border-radius:4px;padding:6px 8px;margin-bottom:4px;font-size:10px}
+.cit-ref{color:#0A8A7A;font-weight:600}
+.cit-txt{color:#8FA3B1;margin-top:1px}
+.case-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid #1E3A5C;font-size:10px;color:#8FA3B1}
+.case-row:last-child{border:none}
+.cbadge{background:#0A2A1E;color:#0A8A7A;border:0.5px solid #0A8A7A;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap}
+.rnum{font-size:26px;font-weight:600;color:#EF9F27}
+.rbar{background:#0D2A45;border-radius:10px;height:5px;margin:5px 0 3px;overflow:hidden}
+.rfill{height:100%;border-radius:10px;background:linear-gradient(90deg,#0A8A7A,#EF9F27,#E24B4A);width:0;transition:width 2s ease}
+.rfact{font-size:10px;color:#8FA3B1;margin-bottom:3px}
+.ev-row{display:flex;align-items:flex-start;gap:6px;padding:4px 0;border-bottom:0.5px solid #1E3A5C;font-size:10px;color:#8FA3B1}
+.ev-row:last-child{border:none}
+.ev-row.elim span{text-decoration:line-through;color:#3A5A72}
+.cbar{background:#0D2A45;border-radius:10px;height:5px;margin:4px 0 3px;overflow:hidden}
+.cfill{height:100%;border-radius:10px;background:#0A8A7A;width:0;transition:width 2s ease}
+.srow{display:flex;gap:7px;padding:5px 0;border-bottom:0.5px solid #1E3A5C;font-size:10px;color:#8FA3B1}
+.srow:last-child{border:none}
+.snum{width:16px;height:16px;border-radius:50%;background:#0A8A7A;color:#fff;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.health{background:#1A2A0A;border:0.5px solid #3B6D11;border-radius:5px;padding:6px 8px;font-size:10px;color:#97C459;margin-top:6px;display:none}
+.overlay{position:absolute;inset:0;background:rgba(9,22,41,0.95);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;z-index:10}
+.start-btn{background:#0A8A7A;border:none;color:#fff;font-size:15px;font-weight:700;padding:14px 44px;border-radius:6px;cursor:pointer;letter-spacing:2px;font-family:'Segoe UI',Arial,sans-serif}
+.start-btn:hover{background:#12B5A2}
+.slabel{color:#8FA3B1;font-size:12px;letter-spacing:1px;text-align:center}
+.srow-ctrl{display:flex;align-items:center;gap:12px}
+.srow-ctrl label{font-size:12px;color:#8FA3B1;white-space:nowrap;min-width:160px}
+.srow-ctrl input{width:160px;accent-color:#0A8A7A}
+.sval{font-size:13px;font-weight:600;color:#0A8A7A;min-width:80px}
+.beat-bar{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:5;align-items:center}
+.bdot{width:8px;height:8px;border-radius:50%;background:#1E3A5C;transition:background .4s}
+.bdot.on{background:#0A8A7A}
+.blbl{font-size:10px;color:#8FA3B1;margin-left:10px;min-width:220px}
+.wrapper{position:relative;height:600px}
+</style>
+
+<div class="wrapper">
+  <div class="overlay" id="overlay">
+    <div class="slabel">PRISM — AUTOMATED DEMO</div>
+    <div class="srow-ctrl">
+      <label>Typing speed</label>
+      <input type="range" id="spd" min="1" max="5" value="2" step="1">
+      <span class="sval" id="spdlbl">Slow</span>
+    </div>
+    <div class="srow-ctrl">
+      <label>Pause between panels</label>
+      <input type="range" id="pse" min="1" max="5" value="2" step="1">
+      <span class="sval" id="pselbl">Slow</span>
+    </div>
+    <div class="slabel" style="font-size:11px;color:#0A8A7A">Both set to Slow — drag left for even slower</div>
+    <button class="start-btn" onclick="startDemo()">▶ &nbsp;START DEMO</button>
+    <div class="slabel" style="font-size:10px;opacity:0.7">Start your screen recorder first, then press start</div>
+  </div>
+
+  <div class="shell">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-name">PRISM</div><div class="logo-sub">EDGE DIAGNOSTIC SYSTEM</div></div>
+      <div class="nav">
+        <div class="nav-item active">⬡ &nbsp;Diagnose</div>
+        <div class="nav-item">⏱ &nbsp;Case history</div>
+        <div class="nav-item">📖 &nbsp;Manuals</div>
+        <div class="nav-item">📡 &nbsp;Telemetry</div>
+        <div class="nav-item">☁ &nbsp;Sync status</div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-title">New Diagnosis, Hydraulic System</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="netmon" id="netmon">⬤ &nbsp;<span id="nettxt">Network: connected</span></div>
+          <div class="badge online" id="badge">● ONLINE</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="panel">
+          <div class="panel-title">INPUT</div>
+          <div class="inp-label">Component photo</div>
+          <div class="photo-zone" id="pzone"><div class="ptext" id="ptxt">↑ &nbsp;Upload component photo</div></div>
+          <div class="inp-label">Fault description</div>
+          <div class="inp-box" id="fdesc"></div>
+          <div class="inp-label">Fault code</div>
+          <div class="inp-box" id="fcode"></div>
+          <div class="inp-label">Live telemetry</div>
+          <div class="telem-row">
+            <div><div class="telem-box">84°C</div><div class="telem-lbl">Temp</div></div>
+            <div><div class="telem-box">1200 hrs</div><div class="telem-lbl">Runtime</div></div>
+            <div><div class="telem-box">42 PSI</div><div class="telem-lbl">Pressure</div></div>
+          </div>
+          <button class="btn" id="diagbtn">DIAGNOSE</button>
+        </div>
+        <div class="output-col">
+          <div class="out-card" id="c1">
+            <div class="out-title">VISION MODULE</div>
+            <div id="vs" style="font-size:11px;color:#8FA3B1;margin-bottom:6px"></div>
+            <div id="vt"></div>
+          </div>
+          <div class="out-card" id="c2">
+            <div class="out-title">KNOWLEDGE RETRIEVAL</div>
+            <div id="rs" style="font-size:11px;color:#8FA3B1;margin-bottom:6px"></div>
+            <div id="rc"></div>
+          </div>
+          <div class="out-card" id="c3">
+            <div class="out-title">CASE MEMORY</div>
+            <div id="cc"></div>
+          </div>
+          <div class="out-card" id="c4">
+            <div class="out-title">PREDICTIVE RISK SCORE</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><div class="rnum" id="rn">0</div><div style="font-size:11px;color:#8FA3B1">/ 100</div></div>
+            <div class="rbar"><div class="rfill" id="rf"></div></div>
+            <div class="rfact">🌡 Temperature 84°C — sustained elevated</div>
+            <div class="rfact">⏱ Runtime 1,200 hrs — approaching threshold</div>
+            <div class="rfact">⚙ Pressure 42 PSI — within normal range</div>
+            <div class="health" id="hn">⚠ Approaching service threshold — inspect within 30 days</div>
+          </div>
+          <div class="out-card hl" id="c5">
+            <div class="out-title">DIAGNOSIS</div>
+            <div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:4px">Hydraulic seal failure, corrosion-induced</div>
+            <div class="cbar"><div class="cfill" id="cf"></div></div>
+            <div style="font-size:10px;color:#8FA3B1;margin-bottom:7px" id="cl">Confidence: 0%</div>
+            <div style="font-size:9px;color:#0A8A7A;letter-spacing:1px;margin-bottom:5px">EVIDENCE CHAIN</div>
+            <div class="ev-row elim"><span style="color:#E24B4A;margin-right:4px">✗</span><span>Sensor calibration drift, eliminated (pressure readings normal)</span></div>
+            <div class="ev-row elim"><span style="color:#E24B4A;margin-right:4px">✗</span><span>Actuator mechanical failure, low probability (upstream visual contradicts)</span></div>
+            <div class="ev-row"><span style="color:#0A8A7A;margin-right:4px">✓</span><span>Hydraulic seal degradation, <b style="color:#fff">confirmed</b> by visual + HYD-104 + 2 past cases</span></div>
+            <div style="font-size:9px;color:#0A8A7A;letter-spacing:1px;margin:7px 0 5px">RECOMMENDED ACTIONS</div>
+            <div class="srow"><div class="snum">1</div><div>Isolate hydraulic circuit and depressurise, CMM Section 4.7.3 p.87</div></div>
+            <div class="srow"><div class="snum">2</div><div>Replace seal assembly P/N AH-7734, matches 2 resolved past cases</div></div>
+            <div class="srow"><div class="snum">3</div><div>Re-pressurise, verify HYD-104 clears, log resolution</div></div>
+            <div style="font-size:10px;color:#3A5A72;margin-top:8px;text-align:center">⬤ &nbsp;0 bytes transmitted, fully offline</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="beat-bar">
+    <div class="bdot" id="b0"></div>
+    <div class="bdot" id="b1"></div>
+    <div class="bdot" id="b2"></div>
+    <div class="bdot" id="b3"></div>
+    <div class="bdot" id="b4"></div>
+    <div class="blbl" id="blbl">Waiting to start...</div>
+  </div>
+</div>
+
+<script>
+const spdMap=[150,90,40,18,8];
+const pseMap=[9000,6000,3500,2000,1000];
+const spdNames=['Very slow','Slow','Medium','Fast','Very fast'];
+const pseNames=['Very long','Long','Medium','Short','Very short'];
+document.getElementById('spd').addEventListener('input',function(){document.getElementById('spdlbl').textContent=spdNames[this.value-1];});
+document.getElementById('pse').addEventListener('input',function(){document.getElementById('pselbl').textContent=pseNames[this.value-1];});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const spd=()=>spdMap[document.getElementById('spd').value-1];
+const pse=()=>pseMap[document.getElementById('pse').value-1];
+function beat(n,lbl){for(let i=0;i<5;i++)document.getElementById('b'+i).className='bdot'+(i===n?' on':'');document.getElementById('blbl').textContent=lbl;}
+function type(el,txt){return new Promise(res=>{let i=0;el.textContent='';const t=setInterval(()=>{el.textContent+=txt[i++];if(i>=txt.length){clearInterval(t);res();}},spd());});}
+function countUp(id,target){return new Promise(res=>{let n=0;const t=setInterval(()=>{n=Math.min(n+2,target);document.getElementById(id).textContent=n;if(n>=target){clearInterval(t);res();}},30);});}
+async function startDemo(){
+  document.getElementById('overlay').style.display='none';
+  beat(0,'Beat 1 — System online, network connected');
+  await sleep(pse()*1.5);
+  beat(1,'Beat 2 — Disconnecting from network...');
+  await sleep(pse()*0.5);
+  document.getElementById('netmon').className='netmon zero';
+  document.getElementById('nettxt').textContent='Network: 0 bytes ↑↓';
+  document.getElementById('badge').className='badge offline';
+  document.getElementById('badge').textContent='● OFFLINE';
+  await sleep(pse()*1.5);
+  beat(2,'Beat 3 — Entering multi-modal inputs');
+  document.getElementById('pzone').className='photo-zone loaded';
+  document.getElementById('ptxt').textContent='✓  valve_component_img_0047.jpg loaded';
+  await sleep(pse()*0.6);
+  await type(document.getElementById('fdesc'),'Pressure drop on right wing hydraulic system, possible seal failure');
+  await sleep(pse()*0.5);
+  await type(document.getElementById('fcode'),'HYD-104');
+  await sleep(pse()*0.8);
+  document.getElementById('diagbtn').textContent='RUNNING DIAGNOSIS...';
+  document.getElementById('diagbtn').className='btn loading';
+  await sleep(pse());
+  beat(3,'Beat 4 — Reasoning across all inputs...');
+  document.getElementById('c1').className='out-card show';
+  document.getElementById('vs').textContent='Analysing component photo with YOLOv8...';
+  await sleep(pse()*1.2);
+  document.getElementById('vs').textContent='Component identified, confidence 91%';
+  document.getElementById('vt').innerHTML='<div><span class="tag tg">Hydraulic valve assembly</span><span class="tag tr">Corrosion, severity: HIGH</span></div>';
+  await sleep(pse()*1.5);
+  document.getElementById('c2').className='out-card show';
+  document.getElementById('rs').textContent='Searching local ChromaDB manual index...';
+  await sleep(pse()*1.2);
+  document.getElementById('rs').textContent='3 relevant excerpts retrieved';
+  document.getElementById('rc').innerHTML='<div class="cit"><div class="cit-ref">CMM Section 4.7.3, Page 87</div><div class="cit-txt">Hydraulic seal inspection criteria and corrosion thresholds</div></div><div class="cit"><div class="cit-ref">FAA AC 25.1309-1A, Section 6.2</div><div class="cit-txt">Fault code HYD-104 root cause classification</div></div>';
+  await sleep(pse()*1.5);
+  document.getElementById('c3').className='out-card show';
+  document.getElementById('cc').innerHTML='<div style="font-size:10px;color:#8FA3B1;margin-bottom:7px">Checking history_cases.json, 2 similar cases found</div><div class="case-row"><span class="cbadge">RESOLVED</span><span>HYD-104 + corrosion · Hangar 3, Jan 2026 · seal P/N AH-7734</span></div><div class="case-row"><span class="cbadge">RESOLVED</span><span>HYD-104 + high temp · Hangar 1, Nov 2025 · seal P/N AH-7734</span></div>';
+  await sleep(pse()*1.5);
+  document.getElementById('c4').className='out-card show';
+  await sleep(500);
+  document.getElementById('rf').style.width='78%';
+  await countUp('rn',78);
+  document.getElementById('hn').style.display='block';
+  await sleep(pse()*1.5);
+  beat(4,'Beat 5 — Cited diagnosis complete, 0 bytes transmitted');
+  document.getElementById('c5').className='out-card hl show';
+  document.getElementById('cf').style.width='89%';
+  let c=0;
+  const ct=setInterval(()=>{c=Math.min(c+2,89);document.getElementById('cl').textContent='Confidence: '+c+'%';if(c>=89)clearInterval(ct);},20);
+  document.getElementById('diagbtn').textContent='✓ DIAGNOSIS COMPLETE';
+  document.getElementById('diagbtn').style.background='#064d45';
+  document.getElementById('diagbtn').className='btn';
+  await sleep(pse()*3);
+  for(let i=0;i<5;i++)document.getElementById('b'+i).className='bdot on';
+  document.getElementById('blbl').textContent='Demo complete, stop recording now ✓';
+}
+</script>
