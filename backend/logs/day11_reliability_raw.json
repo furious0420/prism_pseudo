@@ -1,0 +1,92 @@
+[
+  {
+    "run": 1,
+    "http": 200,
+    "ms": 27247.4,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 2,
+    "http": 200,
+    "ms": 5761.5,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 3,
+    "http": 200,
+    "ms": 16530.0,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 4,
+    "http": 200,
+    "ms": 12127.6,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 5,
+    "http": 200,
+    "ms": 15520.3,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 6,
+    "http": 200,
+    "ms": 18258.2,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 7,
+    "http": 200,
+    "ms": 15782.8,
+    "grounded": true,
+    "cited_ok": false,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 8,
+    "http": 200,
+    "ms": 26297.1,
+    "grounded": true,
+    "cited_ok": false,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 9,
+    "http": 200,
+    "ms": 36491.4,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  },
+  {
+    "run": 10,
+    "http": 200,
+    "ms": 19527.7,
+    "grounded": true,
+    "cited_ok": true,
+    "refused": false,
+    "similar_cases": 3
+  }
+]
