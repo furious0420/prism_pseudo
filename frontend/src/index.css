@@ -57,7 +57,9 @@ h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; color: #fff; line-he
 }
 @keyframes blip { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
 
-.content { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+.content { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+/* Single-column tabs stay readable instead of stretching to the full grid width. */
+.narrow { max-width: 760px; }
 
 h2 { margin: 0 0 14px; font-size: 0.78rem; text-transform: uppercase;
      letter-spacing: 0.08em; color: var(--muted); font-weight: 700;
@@ -158,6 +160,61 @@ ul.stages li {
 }
 .needs-input { margin: 0; color: var(--warn); }
 .hint { margin: 10px 0 0; font-size: 0.875rem; color: var(--warn); }
+
+/* ---------- two-column dashboard ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.col-input { position: sticky; top: 16px; }
+.col-input .card, .col-output .card { margin-bottom: 16px; }
+.placeholder { border-style: dashed; background: transparent; box-shadow: none; }
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .col-input { position: static; }
+}
+
+/* ---------- telemetry inputs ---------- */
+.telem-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.telem-cell input {
+  width: 100%; padding: 9px 8px; text-align: center; font: inherit; font-size: 0.95rem;
+  font-variant-numeric: tabular-nums; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: var(--fg); -moz-appearance: textfield;
+}
+.telem-cell input::-webkit-outer-spin-button,
+.telem-cell input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.telem-cell input:focus {
+  outline: none; border-color: var(--teal-500); box-shadow: 0 0 0 3px rgba(13,148,136,.15);
+}
+.telem-lbl {
+  display: block; margin: 5px 0 0; text-align: center; font-size: 0.72rem;
+  font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+}
+.telem-lbl span { font-weight: 400; opacity: .7; }
+
+/* ---------- predictive risk score ---------- */
+.risk-score-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.risk-num { font-size: 2.4rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.risk-low .risk-num { color: var(--r-low); }
+.risk-medium .risk-num { color: var(--r-med); }
+.risk-high .risk-num { color: var(--r-high); }
+.risk-critical .risk-num { color: var(--r-crit); }
+.rbar { background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+        height: 8px; overflow: hidden; margin-bottom: 14px; }
+.rfill { height: 100%; border-radius: 10px; transition: width 1.2s ease; }
+.rfill.r-low { background: var(--r-low); }
+.rfill.r-medium { background: var(--r-med); }
+.rfill.r-high { background: var(--r-high); }
+.rfill.r-critical { background: var(--r-crit); }
+ul.factors { list-style: none; margin: 0 0 12px; padding: 0; }
+ul.factors li { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+ul.factors li:last-child { border-bottom: 0; }
+.fdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px;
+        vertical-align: middle; background: var(--muted); }
+.fdot.nominal { background: var(--r-low); }
+.fdot.elevated, .fdot.medium { background: var(--r-med); }
+.fdot.high { background: var(--r-high); }
+.fdot.critical { background: var(--r-crit); }
+.fdot.low { background: var(--r-low); }
+.fpts { float: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+.disclaimer { margin: 10px 0 0; opacity: .75; font-style: italic; }
 
 /* ---------- tabs ---------- */
 .tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }

@@ -21,6 +21,9 @@ load_dotenv()
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 MAX_UPLOAD_MB = int(os.getenv("PRISM_MAX_UPLOAD_MB", "20"))
+# Telemetry parameters accepted by POST /diagnose; must match
+# models.risk.PARAMETERS keys.
+TELEMETRY_FIELDS = ("temperature_c", "pressure_psi", "runtime_hrs", "vibration_mm_s")
 
 
 def create_app() -> Flask:
@@ -54,10 +57,19 @@ def create_app() -> Flask:
         query = (request.form.get("query") or "").strip()
         upload = request.files.get("image")
 
-        if not query and (upload is None or not upload.filename):
+        # Optional telemetry readings — any subset. Blank/absent fields are
+        # skipped by the scorer rather than treated as nominal.
+        telemetry = {
+            key: request.form.get(key)
+            for key in TELEMETRY_FIELDS
+            if (request.form.get(key) or "").strip()
+        }
+
+        if not query and (upload is None or not upload.filename) and not telemetry:
             return jsonify({
                 "error": "empty_request",
-                "detail": "Provide a symptom description, an image, or both.",
+                "detail": "Provide a symptom description, an image, telemetry readings, "
+                          "or any combination.",
             }), 400
 
         tmp_path = None
@@ -76,7 +88,7 @@ def create_app() -> Flask:
                 upload.save(tmp_path)
 
             from models.pipeline import run_diagnosis
-            result = run_diagnosis(image_path=tmp_path, query=query)
+            result = run_diagnosis(image_path=tmp_path, query=query, telemetry=telemetry)
             return jsonify(result), 200
         finally:
             # Never leave uploads behind; a long demo session would accumulate them.

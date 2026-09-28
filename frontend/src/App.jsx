@@ -4,6 +4,14 @@ const API = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
 const POLL_MS = 12000;
 
+// Keys must match backend TELEMETRY_FIELDS / models.risk.PARAMETERS.
+const TELEMETRY_FIELDS = [
+  { key: "temperature_c", label: "Temp", unit: "°C", placeholder: "84" },
+  { key: "pressure_psi", label: "Pressure", unit: "PSI", placeholder: "42" },
+  { key: "runtime_hrs", label: "Runtime", unit: "hrs", placeholder: "1200" },
+  { key: "vibration_mm_s", label: "Vibration", unit: "mm/s", placeholder: "3.1" },
+];
+
 export default function App() {
   const [tab, setTab] = useState("diagnose");
   const [query, setQuery] = useState("");
@@ -14,6 +22,7 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [pipeline, setPipeline] = useState(null);
+  const [telemetry, setTelemetry] = useState({});
   const timer = useRef(null);
 
   // Polled, not one-shot: if the backend dies mid-demo the header says so
@@ -50,10 +59,12 @@ export default function App() {
     setPreview(f ? URL.createObjectURL(f) : null);
   }
 
+  const hasTelemetry = Object.values(telemetry).some((v) => String(v ?? "").trim());
+
   async function onSubmit(e) {
     e.preventDefault();
-    if (!query.trim() && !file) {
-      setError("Describe the symptom, attach a photo, or both.");
+    if (!query.trim() && !file && !hasTelemetry) {
+      setError("Describe the symptom, attach a photo, enter telemetry — or any combination.");
       return;
     }
     setBusy(true);
@@ -64,6 +75,10 @@ export default function App() {
       const fd = new FormData();
       fd.append("query", query);
       if (file) fd.append("image", file);
+      for (const { key } of TELEMETRY_FIELDS) {
+        const v = String(telemetry[key] ?? "").trim();
+        if (v) fd.append(key, v);
+      }
       const res = await fetch(`${API}/diagnose`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
@@ -120,12 +135,16 @@ export default function App() {
           ))}
         </nav>
 
-      {tab === "history" && <CaseHistory />}
-      {tab === "status" && <SystemStatus p={pipeline} onRefresh={refreshPipeline} />}
+      {tab === "history" && <div className="narrow"><CaseHistory /></div>}
+      {tab === "status" && (
+        <div className="narrow"><SystemStatus p={pipeline} onRefresh={refreshPipeline} /></div>
+      )}
 
       {tab === "diagnose" && <>
       {pipeline && <Readiness p={pipeline} />}
 
+      <div className="split">
+      <div className="col-input">
       <form onSubmit={onSubmit} className="card">
         <label htmlFor="q">Symptom description</label>
         <textarea
@@ -156,6 +175,24 @@ export default function App() {
           </p>
         )}
 
+        <label>Live telemetry (optional)</label>
+        <div className="telem-grid">
+          {TELEMETRY_FIELDS.map(({ key, label: l, unit, placeholder }) => (
+            <div className="telem-cell" key={key}>
+              <input
+                id={key}
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={telemetry[key] ?? ""}
+                placeholder={placeholder}
+                onChange={(e) => setTelemetry({ ...telemetry, [key]: e.target.value })}
+              />
+              <label htmlFor={key} className="telem-lbl">{l} <span>{unit}</span></label>
+            </div>
+          ))}
+        </div>
+
         <button type="submit" disabled={busy}>
           {busy ? `Diagnosing… ${elapsed.toFixed(1)}s` : "Diagnose"}
         </button>
@@ -167,19 +204,31 @@ export default function App() {
       </form>
 
       {error && <div className="card err"><strong>Request failed.</strong> {error}</div>}
+      </div>
 
+      <div className="col-output">
+      {!result && !error && !busy && (
+        <div className="card placeholder">
+          <p className="muted">
+            Results appear here — detected defects, risk score, the grounded
+            diagnosis with its cited manual passages, and similar past cases.
+          </p>
+        </div>
+      )}
       {result && (
         <>
-          {risk && (
-            <section className={`card risk risk-${risk.level.toLowerCase()}`}>
-              <h2>Risk</h2>
-              <p className="risk-level">{risk.level}</p>
-              <p className="muted">{risk.rationale}</p>
-              {risk.needs_human_review && (
-                <p className="review">Requires human review before any action.</p>
-              )}
-            </section>
-          )}
+          {result.risk_assessment
+            ? <RiskPanel a={result.risk_assessment} />
+            : risk && (
+              <section className={`card risk risk-${risk.level.toLowerCase()}`}>
+                <h2>Risk</h2>
+                <p className="risk-level">{risk.level}</p>
+                <p className="muted">{risk.rationale}</p>
+                {risk.needs_human_review && (
+                  <p className="review">Requires human review before any action.</p>
+                )}
+              </section>
+            )}
 
           <section className="card">
             <h2>Diagnosis</h2>
@@ -284,6 +333,8 @@ export default function App() {
           </section>
         </>
       )}
+      </div>
+      </div>
       </>}
       </div>
 
@@ -292,6 +343,36 @@ export default function App() {
         ChromaDB retrieval and YOLOv8 detection, no cloud calls in the diagnosis path.
       </p>
     </main>
+  );
+}
+
+function RiskPanel({ a }) {
+  const band = a.band.toLowerCase();
+  return (
+    <section className={`card risk risk-${band}`}>
+      <h2>Predictive risk score</h2>
+      <div className="risk-score-row">
+        <span className="risk-num">{a.score}</span>
+        <span className="muted">/ 100</span>
+        <span className={`tag risk-tag r-${band}`}>{a.band}</span>
+      </div>
+      <div className="rbar"><div className={`rfill r-${band}`} style={{ width: `${a.score}%` }} /></div>
+      <ul className="factors">
+        {a.factors.map((f) => (
+          <li key={f.parameter}>
+            <span className={`fdot ${f.band}`} />
+            <strong>{f.label}</strong>
+            {f.value != null && <span className="muted"> {f.value}{f.unit}</span>}
+            <span className="muted"> — {f.note}</span>
+            {f.points > 0 && <span className="fpts">+{f.points}</span>}
+          </li>
+        ))}
+      </ul>
+      <p className={a.needs_human_review ? "review" : "muted small"}>{a.advisory}</p>
+      <p className="muted small disclaimer">
+        Illustrative thresholds for demonstration — not certified airworthiness limits.
+      </p>
+    </section>
   );
 }
 
