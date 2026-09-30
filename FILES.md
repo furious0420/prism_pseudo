@@ -18,7 +18,8 @@ pip install -r ..\requirements.txt
 | `frontend/` | D1-01 | Vite + React. `src/App.jsx` was a health-check page until Day 9 replaced it. |
 | `backend/.env.example` | D1-02 | Every config var. Copy to `backend/.env`; never commit the real one. |
 | `infra/iam-policy-prism-dev.json` | D1-02 | Least-privilege IAM policy, scoped to the PRISM bucket only. |
-| `backend/scripts/s3_check.py` | D1-02 | Verifies region, read, write, the four prefixes and the SOP tags. `--bootstrap` creates the prefixes. Exits non-zero on anything blocking. |
+| `backend/scripts/s3_check.py` | D1-02 | Verifies region, read, write, the five prefixes and the SOP tags. `--bootstrap` creates the prefixes. Exits non-zero on anything blocking. |
+| `backend/scripts/s3_sync.py` | D1-02/D5 | Uploads the shared data — corpus, cases, fine-tuned weights, and the validation split as one zip. `--dry-run` shows the plan without calling AWS; unchanged files are skipped by MD5-vs-ETag. Nothing on the diagnosis path reads from S3. |
 | `backend/scripts/dataset_check.py` | D1-03 | Scans S3 and a local folder for a labeled dataset; identifies YOLO / COCO / Pascal VOC / Ground Truth manifest and prints the Day 5 consequence. |
 | `backend/scripts/pdf_probe.py` | D1-04 | Are the manuals real text or scans? A scan makes `pdfplumber` return empty strings and stalls Day 3 silently. |
 | `requirements.txt` (root) | D1-04 | Every dependency, mapped to its day, plus the non-pip tools and the install-order trap (CUDA torch first). |

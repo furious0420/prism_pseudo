@@ -98,10 +98,10 @@ python scripts/s3_check.py
 ```
 
 It checks, in order: the bucket exists and is in `ap-south-1`; `ListBucket`
-works; a test object can be written and deleted; the four prefixes exist; and
+works; a test object can be written and deleted; the five prefixes exist; and
 both tags are present. Exit code 0 means everything blocking passed.
 
-To create the four prefixes if they're missing:
+To create the five prefixes if they are missing:
 
 ```bash
 python scripts/s3_check.py --bootstrap
@@ -110,18 +110,39 @@ python scripts/s3_check.py --bootstrap
 Expected layout once populated:
 
 ```
-s3://<your-bucket>/
+s3://prism-mro-innovent27/
 ├── corpus/           FAA advisory circular PDFs (the RAG source)
 ├── images/raw/       unlabelled defect images
-├── images/labeled/   the YOLO dataset (images + labels)
-└── cases/            history_cases.json
+├── images/labeled/   valid_split.zip — the split the metrics were measured on
+├── cases/            history_cases.json
+└── weights/          the fine-tuned YOLOv8n detector
 ```
+
+`weights/` is not in the tracker's original list. It is there because
+`.gitignore` excludes `*.pt`, so the fine-tuned detector — 25 epochs of CPU
+training — otherwise exists only on one laptop. If that copy is lost the
+pipeline silently falls back to pretrained COCO, which detects nothing on
+aircraft defects.
 
 ## Step 5 — Populate it
 
-Once `s3_check.py` passes, I upload the three data sets the team shares — the
-FAA corpus, the aircraft defect dataset, and the case memory — so a teammate on
-another machine can pull them instead of re-downloading from Kaggle and faa.gov.
+```bash
+python scripts/s3_sync.py --dry-run   # see the plan, makes no AWS calls
+python scripts/s3_sync.py             # upload
+```
+
+Six objects, ~106 MB: three FAA circulars, `history_cases.json`, the
+fine-tuned weights, and the validation split as a single zip. A teammate on
+another machine pulls these instead of re-downloading from Kaggle and faa.gov.
+
+It is **six** objects rather than 1,289 on purpose. The validation split is 642
+images plus 642 labels; uploaded individually that is 1,284 PUTs against a
+2,000/month free tier in a single run, for data `fetch_dataset.py` re-fetches
+for free. As one zip it costs a single PUT.
+
+Re-running is safe and cheap: each file's MD5 is compared against the S3 ETag
+and unchanged files are skipped, so a second run uploads nothing. `--force`
+overrides that, `--only weights` uploads just one group.
 
 ---
 

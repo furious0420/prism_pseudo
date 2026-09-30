@@ -1,7 +1,7 @@
 """D1-02 — verify (and optionally bootstrap) the PRISM S3 bucket.
 
     python scripts/s3_check.py              # read/write verification only
-    python scripts/s3_check.py --bootstrap  # also create the four prefixes
+    python scripts/s3_check.py --bootstrap  # also create the five prefixes
 
 Reads AWS_* and PRISM_S3_BUCKET from backend/.env.
 
@@ -22,7 +22,12 @@ load_dotenv()
 
 BUCKET = os.getenv("PRISM_S3_BUCKET")
 REGION = os.getenv("AWS_DEFAULT_REGION", "ap-south-1")
-PREFIXES = ["corpus/", "images/raw/", "images/labeled/", "cases/"]
+# "weights/" is not in the tracker's D1-02 list. It is here because the
+# fine-tuned detector (runs/detect/train/weights/best.pt) is gitignored by the
+# *.pt rule, so 25 epochs of CPU training otherwise exist in exactly one place:
+# one laptop. If that copy is lost the pipeline silently falls back to
+# pretrained COCO, which detects nothing on aircraft defects.
+PREFIXES = ["corpus/", "images/raw/", "images/labeled/", "cases/", "weights/"]
 REQUIRED_TAGS = {"Project Name": "PRISM"}  # "Name" = team leader, set per SOP
 
 OK, BAD, WARN = "[ OK ]", "[FAIL]", "[WARN]"
@@ -31,7 +36,7 @@ OK, BAD, WARN = "[ OK ]", "[FAIL]", "[WARN]"
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bootstrap", action="store_true",
-                    help="create the four prefixes (tags must be set in the console)")
+                    help="create the five prefixes (tags must be set in the console)")
     args = ap.parse_args()
 
     if not BUCKET:
