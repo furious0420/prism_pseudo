@@ -1,22 +1,16 @@
 """PRISM backend — Flask API.
 
-  GET  /health            liveness, instant
-  GET  /health/llm        is a local LLM reachable (D2)
-  GET  /health/pipeline   which stages are ready (D9)
-  POST /diagnose          the full pipeline (D9-01)
-  POST /diagnose/stream   same, streamed stage-by-stage (SSE)
-  GET  /corpus/documents  which manuals are indexed (frontend Manuals tab)
-  GET  /corpus/search     search the manual index directly, no LLM
-  GET  /memory/cases      all case-memory entries (frontend Case History tab)
-  POST /memory/log-case   append a resolved case (frontend "Mark as Resolved")
+  GET  /health           liveness, instant
+  GET  /health/llm       is a local LLM reachable (D2)
+  GET  /health/pipeline  which stages are ready (D9)
+  POST /diagnose         the full pipeline (D9-01)
 """
-import json
 import os
 import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, Response, current_app, jsonify, request
+from flask import Flask, current_app, jsonify, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
@@ -25,9 +19,6 @@ load_dotenv()
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 MAX_UPLOAD_MB = int(os.getenv("PRISM_MAX_UPLOAD_MB", "20"))
-# Telemetry parameters accepted by POST /diagnose; must match
-# models.risk.PARAMETERS keys.
-TELEMETRY_FIELDS = ("temperature_c", "pressure_psi", "runtime_hrs", "vibration_mm_s")
 
 
 def create_app() -> Flask:
@@ -61,19 +52,10 @@ def create_app() -> Flask:
         query = (request.form.get("query") or "").strip()
         upload = request.files.get("image")
 
-        # Optional telemetry readings — any subset. Blank/absent fields are
-        # skipped by the scorer rather than treated as nominal.
-        telemetry = {
-            key: request.form.get(key)
-            for key in TELEMETRY_FIELDS
-            if (request.form.get(key) or "").strip()
-        }
-
-        if not query and (upload is None or not upload.filename) and not telemetry:
+        if not query and (upload is None or not upload.filename):
             return jsonify({
                 "error": "empty_request",
-                "detail": "Provide a symptom description, an image, telemetry readings, "
-                          "or any combination.",
+                "detail": "Provide a symptom description, an image, or both.",
             }), 400
 
         tmp_path = None
@@ -92,7 +74,7 @@ def create_app() -> Flask:
                 upload.save(tmp_path)
 
             from models.pipeline import run_diagnosis
-            result = run_diagnosis(image_path=tmp_path, query=query, telemetry=telemetry)
+            result = run_diagnosis(image_path=tmp_path, query=query)
             return jsonify(result), 200
         finally:
             # Never leave uploads behind; a long demo session would accumulate them.
@@ -101,142 +83,6 @@ def create_app() -> Flask:
                     os.remove(tmp_path)
                 except OSError:
                     app.logger.warning("could not remove temp upload %s", tmp_path)
-
-    @app.post("/diagnose/stream")
-    def diagnose_stream_endpoint():
-        """Same as POST /diagnose, but emits each stage as it completes (SSE).
-
-        Generation dominates the wall clock, so without this the UI sits blank
-        for the whole run. The upload has to be read and saved BEFORE the
-        generator starts: the request context is gone by the time Flask pulls
-        from it, so touching request.* inside would raise.
-        """
-        query = (request.form.get("query") or "").strip()
-        upload = request.files.get("image")
-        telemetry = {
-            key: request.form.get(key)
-            for key in TELEMETRY_FIELDS
-            if (request.form.get(key) or "").strip()
-        }
-
-        if not query and (upload is None or not upload.filename) and not telemetry:
-            return jsonify({
-                "error": "empty_request",
-                "detail": "Provide a symptom description, an image, telemetry readings, "
-                          "or any combination.",
-            }), 400
-
-        tmp_path = None
-        if upload is not None and upload.filename:
-            name = secure_filename(upload.filename)
-            ext = Path(name).suffix.lower()
-            if ext not in ALLOWED_IMAGE_EXT:
-                return jsonify({
-                    "error": "unsupported_file_type",
-                    "detail": f"'{ext or name}' is not an image. "
-                              f"Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXT))}",
-                }), 400
-            fd, tmp_path = tempfile.mkstemp(suffix=ext, prefix="prism_")
-            os.close(fd)
-            upload.save(tmp_path)
-
-        logger = app.logger
-
-        def events():
-            from models.pipeline import run_diagnosis_stream
-            try:
-                for kind, data in run_diagnosis_stream(
-                    image_path=tmp_path, query=query, telemetry=telemetry
-                ):
-                    yield f"event: {kind}\ndata: {json.dumps(data)}\n\n"
-            except Exception as e:                      # noqa: BLE001
-                # The stream has already started, so a 500 is no longer
-                # available — report the failure as a final event instead of
-                # dropping the connection with no explanation.
-                logger.exception("stream failed")
-                yield ("event: error\ndata: "
-                       + json.dumps({"error": "internal_error", "detail": str(e)})
-                       + "\n\n")
-            finally:
-                if tmp_path and os.path.exists(tmp_path):
-                    try:
-                        os.remove(tmp_path)
-                    except OSError:
-                        logger.warning("could not remove temp upload %s", tmp_path)
-
-        return Response(events(), mimetype="text/event-stream", headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            # Stops nginx-style proxies buffering the stream into one lump,
-            # which would defeat the whole point.
-            "X-Accel-Buffering": "no",
-        })
-
-    @app.get("/corpus/documents")
-    def corpus_documents_endpoint():
-        from models.retrieval import CorpusMissing, documents
-        try:
-            return jsonify({"documents": documents()}), 200
-        except CorpusMissing as e:
-            return jsonify({"error": "corpus_missing", "detail": str(e)}), 503
-
-    @app.get("/corpus/search")
-    def corpus_search_endpoint():
-        """Search the manual index directly, without running the LLM — lets you
-        see exactly what retrieval returns for a query."""
-        q = (request.args.get("q") or "").strip()
-        if not q:
-            return jsonify({"error": "empty_query", "detail": "Provide ?q=<search text>."}), 400
-        try:
-            k = min(max(int(request.args.get("k", 5)), 1), 20)
-        except ValueError:
-            k = 5
-        from models.retrieval import CorpusMissing, search
-        try:
-            return jsonify({"query": q, "hits": search(q, k=k)}), 200
-        except CorpusMissing as e:
-            return jsonify({"error": "corpus_missing", "detail": str(e)}), 503
-
-    @app.get("/memory/cases")
-    def list_cases_endpoint():
-        from models.case_memory import list_cases
-        return jsonify({"cases": list_cases()}), 200
-
-    @app.post("/memory/log-case")
-    def log_case_endpoint():
-        """JSON body: {defect_type?, symptom_description, diagnosis, resolution,
-        risk_score?}. defect_type/risk_score are optional — a text-only
-        diagnosis has no detected defect type."""
-        body = request.get_json(silent=True) or {}
-        symptom_description = (body.get("symptom_description") or "").strip()
-        diagnosis = (body.get("diagnosis") or "").strip()
-        resolution = (body.get("resolution") or "").strip()
-
-        missing = [f for f, v in (
-            ("symptom_description", symptom_description),
-            ("diagnosis", diagnosis),
-            ("resolution", resolution),
-        ) if not v]
-        if missing:
-            return jsonify({
-                "error": "missing_fields",
-                "detail": f"Required: {', '.join(missing)}.",
-            }), 400
-
-        from models.case_memory import log_case
-        try:
-            case = log_case(
-                defect_type=(body.get("defect_type") or "").strip(),
-                symptom_description=symptom_description,
-                diagnosis=diagnosis,
-                resolution=resolution,
-                risk_score=(body.get("risk_score") or "").strip(),
-            )
-        except ValueError as e:
-            # A corrupt history_cases.json is a data problem, not a server
-            # crash — 400 with the parse error, not a 500.
-            return jsonify({"error": "invalid_case_file", "detail": str(e)}), 400
-        return jsonify(case), 200
 
     @app.errorhandler(HTTPException)
     def handle_http_error(err):
