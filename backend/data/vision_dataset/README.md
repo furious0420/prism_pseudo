@@ -1,65 +1,65 @@
-# Vision dataset — corrosion & crack detection
-
-The D5 substitute. The tracker's own path (SageMaker Ground Truth labelling)
-needs AWS access we don't have, so this is a public pre-labelled dataset
-instead — see `docs/no_aws_plan.md` for the reasoning.
+# Vision dataset — aircraft surface defects
 
 ## Source
 
-- **Dataset:** [`Francesco/corrosion-bi3q3`](https://huggingface.co/datasets/Francesco/corrosion-bi3q3) on Hugging Face
-- **Licence:** CC (permits use and redistribution)
-- **Origin:** Roboflow Universe, mirrored to HF as an object-detection set
-- **Downloaded:** 2026-09-30
+- **Dataset:** [`fatimaazfarziya/aircraft-defects`](https://www.kaggle.com/datasets/fatimaazfarziya/aircraft-defects) on Kaggle
+- **Origin:** Roboflow Universe — [Innovation Hangar v2](https://universe.roboflow.com/innovation-hangar/innovation-hangar-v2)
+- **Licence:** CC BY 4.0
+- **Fetched:** 2026-09-30 via `scripts/fetch_dataset.py` (no credentials needed)
 
 ## Why this one
 
-Its classes are **`corrosion`** and **`crack`** — both already present in
-`backend/models/risk.py`'s `SEVERITY` table (corrosion → High, crack →
-Critical), so detections flow into risk scoring with no vocabulary remapping.
-That was the main selection criterion; most public defect datasets are steel or
-textured-surface sets whose class names mean nothing to this pipeline.
+It is **aircraft-specific**. An earlier attempt used a general industrial
+corrosion/rust dataset and was rejected — correctly. The entire claim of this
+project is *aerospace* inspection, and a detector trained on bridges and
+pipework does not support it. A judge asking "is this trained on aircraft?"
+has to get a yes.
+
+All five classes are real aviation surface-defect categories, and all five are
+now in `backend/models/risk.py`'s `SEVERITY` table, so detections map to a
+severity with no guesswork:
+
+| Class | Severity | Reasoning |
+|---|---|---|
+| `crack` | Critical | Structural, propagates under cyclic load |
+| `missing-head` | High | A fastener head gone means the joint is no longer carrying its design load |
+| `dent` | Medium | Usually within allowable damage limits, but depth-dependent |
+| `paint-off` | Medium | Not structural itself, but removes the coating that prevents corrosion — a precursor |
+| `scratch` | Low | Cosmetic unless it penetrates primer |
 
 ## Contents
 
-| Split | Images | Boxes |
-|---|---:|---:|
-| train | 840 | 3,112 |
-| val | 105 | 422 |
+| Split | Images | Boxes | Background images |
+|---|---:|---:|---:|
+| train | 3,217 | 6,642 | 16 |
+| valid | 642 | 1,265 | 5 |
+| test | 429 | 861 | 3 |
 
-Class indices as they appear in `data.yaml`:
+Box counts by class (train / valid / test):
 
-| Index | Name | In `SEVERITY`? | Boxes (train/val) |
-|---|---|---|---|
-| 0 | `corrosion-0` | no | 0 / 0 — a Roboflow super-class artifact, unused |
-| 1 | `Slippage` | no → defaults to Medium + human review | 548 / 0 |
-| 2 | `corrosion` | **yes → High** | 1,176 / 164 |
-| 3 | `crack` | **yes → Critical** | 1,388 / 258 |
+| Class | train | valid | test |
+|---|---:|---:|---:|
+| crack | 3,202 | 607 | 386 |
+| dent | 2,859 | 554 | 413 |
+| missing-head | 284 | 54 | 32 |
+| paint-off | 237 | 34 | 23 |
+| scratch | 60 | 16 | 7 |
 
-42 images (37 train, 5 val) have empty label files. That is valid YOLO — they
-are background images with no annotated defect, and they help suppress false
-positives. `scripts/dataset_check.py` reports them as `UNKNOWN(.txt)` because it
-classifies by content and an empty file has none; that is a quirk of the checker,
-not a problem with the data.
+**The class imbalance is severe and worth stating honestly:** `crack` and
+`dent` together are ~91% of all boxes, while `scratch` has just 60 training
+examples. Expect good crack/dent detection and weak scratch detection. Do not
+present per-class numbers for the rare classes as if they were reliable — the
+`test` split has only 7 scratch boxes, which is far too few to measure
+anything.
 
-The HF `test` split (304 images) was deliberately **not** converted. It is held
-back as a genuinely unseen evaluation set.
+The `test` split is held back from training entirely and is the honest
+evaluation set.
 
-## Regenerating
+## Not in git
 
-The parquet sources in `_raw/` are gitignored. To rebuild from scratch:
+The images and labels are gitignored — 183 MB, and re-fetchable in one
+command with no credentials:
 
 ```bash
-# re-download the three parquet files into backend/data/vision_dataset/_raw/
-python scripts/convert_hf_dataset.py
+python scripts/fetch_dataset.py
 ```
-
-## Caveats to state honestly
-
-- This is **general industrial corrosion/crack imagery, not aircraft-specific**.
-  A deliberate call (see `docs/no_aws_plan.md`): a larger, cleaner, properly
-  licensed dataset beats a thin aerospace-only one, and the prior art the project
-  cites makes the same substitution. Worth one sentence in the deck rather than
-  leaving a judge to discover it.
-- `Slippage` is not an aviation defect category. It is not in `SEVERITY`, so it
-  scores as Medium and is flagged for human review rather than being silently
-  treated as safe.

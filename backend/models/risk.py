@@ -16,16 +16,26 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-# Adjust to your actual YOLOv8 class list once Day 6 fixes the classes.
+# The first five keys are the actual trained YOLOv8 class list (see
+# data/vision_dataset/data.yaml); the rest are retained because technicians
+# describe defects in free text too, and a typed symptom can name them.
 SEVERITY = {
+    # --- trained detector classes ---
     "crack": "Critical",
+    "dent": "Medium",
+    # A missing fastener head is a load-path problem, not cosmetic: the joint
+    # it secured is no longer carrying what it was designed to.
+    "missing-head": "High",
+    # Paint loss is not itself structural, but it removes the coating that
+    # prevents corrosion, so it is a precursor rather than a finding.
+    "paint-off": "Medium",
+    "scratch": "Low",
+    # --- additional vocabulary for free-text symptoms ---
     "stress corrosion cracking": "Critical",
     "corrosion": "High",
     "exfoliation": "High",
     "pitting": "High",
-    "dent": "Medium",
     "deformation": "Medium",
-    "scratch": "Low",
     "discoloration": "Low",
 }
 

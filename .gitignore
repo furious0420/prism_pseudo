@@ -26,9 +26,12 @@ yarn-error.log*
 *.onnx
 backend/chroma_db/
 backend/logs/*.mp4
-# Source parquet for the vision dataset — regenerable by re-downloading, and
-# redundant once scripts/convert_hf_dataset.py has produced images/ + labels/.
-backend/data/vision_dataset/_raw/
+# Vision dataset images/labels — 183 MB, re-fetchable with no credentials via
+# scripts/fetch_dataset.py. data.yaml and README.md ARE tracked.
+backend/data/vision_dataset/train/
+backend/data/vision_dataset/valid/
+backend/data/vision_dataset/test/
+backend/data/vision_dataset/*.txt
 # ultralytics training output (weights already covered by *.pt above)
 runs/
 backend/runs/
