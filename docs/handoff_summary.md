@@ -35,10 +35,11 @@ response is never a 500. That was tested deliberately, not assumed.
 | Metric | Result | Source |
 |---|---|---|
 | Local LLM generation | median **16.8 tok/s**, typical call 11.4s, cold start 51s | `logs/day2_benchmark.md` |
-| Retrieval latency | **27 ms** average across 10 queries | `logs/day3_retrieval.md` |
-| Corpus indexed | **5,364 passages** from 3 FAA advisory circulars (1,350 pages) | `logs/day3_retrieval.md` |
-| Grounding | **6/7** queries grounded + correctly cited; 7th correctly **refused** | `logs/day4_examples.md` |
+| Retrieval latency | **20 ms** average across 10 queries | `logs/day3_retrieval.md` |
+| Corpus indexed | **4,769 passages** from 3 FAA advisory circulars (1,350 pages), column-aware and stripped of running headers, contents lines and captions | `logs/day3_extraction_fix.md` |
+| Grounding | **6/7** queries grounded + correctly cited; 7th correctly **refused**. The 1 flag is a reproducible phi3:mini filename slip the citation checker catches and the UI warns on | `logs/day4_examples.md` |
 | Full request reliability | **10/10** succeeded, zero failures, median 17.4s | `logs/day11_metrics.md` |
+| Detection (fine-tuned YOLOv8n) | precision **0.646**, recall **0.472**, mAP50 **0.465** — demo grade; misses roughly half of what is present | `logs/day11_metrics.md` |
 | Edge-case robustness | **6/6** handled, **zero 5xx** (empty, whitespace, nonsense, 400-word, out-of-corpus) | `logs/day9_api.md` |
 | Browser integration | **4/4** image+query combinations stitched correctly, zero console errors | `logs/day10_integration.md` |
 | Time to first visible stage | **~0.9s** (streamed), vs 15-25s blank before | verified in-browser |
@@ -62,8 +63,8 @@ State these plainly if asked; each is a decision, not an oversight.
 
 | Not built | Why |
 |---|---|
-| **Defect-trained vision model** | No labelled aerospace defect dataset exists yet, and the tracker's fallback (SageMaker Ground Truth) needs AWS access we don't currently have. The detector runs *pretrained* YOLOv8n and every result is flagged `pretrained: true` so the UI never overclaims. Plan to close this without AWS: `docs/no_aws_plan.md`. |
-| **S3 / IoT Greengrass cloud sync** | Explicitly a later-phase item. The offline-first claim would be *weakened*, not helped, by a runtime cloud dependency. The IAM policy and bootstrap script are written and ready for when access returns. |
+| **Production-accuracy vision model** | Closed as a gap, but only to demo grade. YOLOv8n is now fine-tuned on an aircraft surface-defect set (CC BY 4.0, 5 classes) — precision 0.646, recall 0.472, mAP50 0.465. Recall near 0.5 means it misses roughly half of what is present. It assists an inspection; it does not replace one. SageMaker Ground Truth was dropped deliberately: a labelling job would spend monitored budget producing data we already have. |
+| **IoT Greengrass cloud sync** | Explicitly a later-phase item. The offline-first claim would be *weakened*, not helped, by a runtime cloud dependency. An S3 bucket exists for dev-time data sharing only (`docs/aws_setup.md`); nothing on the diagnosis path touches it. |
 | **VLM (LLaVA / Phi-3-Vision)** | De-risked out of this stage — memory pressure on a 4GB GPU plus fine-tuning risk. |
 | **HIL testbench validation** | Later phase. |
 

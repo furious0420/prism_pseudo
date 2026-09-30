@@ -111,6 +111,7 @@ committed — the corpus is small enough and the logs are evidence, not noise.
 
 | Path | What |
 |---|---|
-| `docs/no_aws_plan.md` | How to finish Days 5-13 without AWS. Read before starting Day 5. |
+| `docs/aws_setup.md` | Creating and using the S3 bucket. Dev-time storage only — never on the diagnosis path. |
+| `docs/handoff_summary.md` | State of the build for whoever picks it up next. |
 | `docs/prism_demo_v4.html` | The original hackathon demo mockup — scripted, no backend. Reference for the intended pitch narrative. |
-| `sample_images/` | A public-domain aircraft photo for exercising the detection path, with a README explaining why a corrosion photo detects nothing today. |
+| `sample_images/` | Two held-out validation images (CC BY 4.0) that the fine-tuned detector fires on, with a README showing the detections and why `worst_risk()` lets a 0.52 crack outrank a 0.98 dent. |

@@ -15,12 +15,12 @@ repo is the post-hackathon build-out.
 
 | Capability | State |
 |---|---|
-| Grounded diagnosis with citations | **Working.** 5,364 passages from 3 real FAA advisory circulars, retrieved and cited. Declines rather than guessing when the manuals don't cover a query. |
+| Grounded diagnosis with citations | **Working.** 4,769 passages from 3 real FAA advisory circulars, retrieved and cited. Declines rather than guessing when the manuals don't cover a query. |
 | Local LLM | **Working.** Phi-3 Mini via Ollama, ~17 tok/s on the dev laptop. |
 | Risk scoring | **Working.** 0-100 score from telemetry thresholds + any detected defect, with a per-factor breakdown. |
 | Case memory | **Working.** 18 authored cases, similarity search, and write-back when you resolve a diagnosis. |
-| Defect detection | **Partial.** The pipeline works, but runs *pretrained* YOLOv8n (COCO classes) because no labelled aerospace defect dataset has been sourced yet. Every result is flagged `pretrained: true` so nothing overclaims. See `docs/no_aws_plan.md`. |
-| Cloud sync (S3 / Greengrass) | **Not built.** Out of scope for this stage, and never part of the diagnosis path by design. |
+| Defect detection | **Working, demo-grade.** YOLOv8n fine-tuned on an aircraft surface-defect set (CC BY 4.0) for 5 classes — crack, dent, missing-head, paint-off, scratch. Precision 0.646, recall 0.472, mAP50 0.465 on the validation split. Recall near 0.5 means it misses roughly half of what is present, so it assists an inspection rather than replacing one. Results carry `pretrained: false`; if the weights are absent it falls back to pretrained COCO and says so. |
+| Cloud sync (S3 / Greengrass) | **Not built.** Out of scope for this stage, and never part of the diagnosis path by design. An S3 bucket exists for sharing data between machines at dev time only — see `docs/aws_setup.md`. |
 
 ## Quick start
 
@@ -53,12 +53,13 @@ backend/
 ├── scripts/            ingest, benchmarks, verification, smoke tests
 ├── data/
 │   ├── corpus_raw/     FAA advisory circulars (committed)
+│   ├── vision_dataset/ aircraft defect images (gitignored, re-fetchable)
 │   └── history_cases.json
 └── logs/               generated evidence reports, one per tracker day
 frontend/src/           React UI — App.jsx, ErrorBoundary.jsx, index.css
-docs/                   no_aws_plan.md, the original demo mockup
+docs/                   aws_setup.md, handoff_summary.md, the original demo mockup
 sample_images/          a photo for exercising the detection path
-infra/                  least-privilege IAM policy, for when AWS is available
+infra/                  least-privilege IAM policy for the prism-dev user
 ```
 
 `FILES.md` explains every file and which tracker day it belongs to.

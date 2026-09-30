@@ -6,8 +6,9 @@ page a user would click through. 4 different image/query combinations, per
 D10-01. Test image: a stock Windows wallpaper photo (no aircraft defects in
 it, used only to exercise the real detection code path — the pretrained
 YOLOv8n fallback is expected to find nothing recognizable in it, and that is
-exactly what happened; a real defect dataset is still pending, see
-`docs/no_aws_plan.md`).
+exactly what happened; a real defect dataset was still pending at the time.
+That gap closed on 2026-09-30 — the detector is now fine-tuned on aircraft
+defect classes, see `sample_images/README.md`.)
 
 ## Scenarios run
 

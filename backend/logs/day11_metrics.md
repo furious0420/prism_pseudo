@@ -3,8 +3,8 @@
 ## Reliability: 10 consecutive `/diagnose` requests
 
 Real HTTP requests against the live backend, varied corrosion/crack/dent
-queries (text-only — see `docs/no_aws_plan.md` for why no image dataset is
-in this pass yet). Raw per-request data in `day11_reliability_raw.json`.
+queries (text-only — no image dataset existed when this pass was run). Raw
+per-request data in `day11_reliability_raw.json`.
 
 - **10/10 succeeded, HTTP 200, zero failures, zero 5xx.**
 - All 10 were `grounded: true` and cited a real manual source.
@@ -30,20 +30,33 @@ that can't look "stuck" up to ~40s), not a reliability concern.
 | 10 | Full browser UI, 4 image/query combos | 4/4 stitched correctly, zero console/page errors | `day10_integration.md` |
 | 11 | Reliability, 10x `/diagnose` | 10/10 succeeded, median 17.4s | this file |
 
-## Deliberately NOT in this pass: YOLO detection metrics
+## NOT in this pass: YOLO detection metrics — since closed
 
-`model.val()` precision/recall/mAP requires a labeled validation set, and
-none exists yet (`vision/dataset/` is empty — confirmed via
-`scripts/dataset_check.py`). This is the AWS-blocked D5 gap, tracked in
-`docs/no_aws_plan.md`. The detector itself is verified *working* (Day 9/10
-show `detector.available: true`, pretrained YOLOv8n runs and returns
-`pretrained: true` results) — what's missing is an accuracy number against
-real aircraft-defect images, not plumbing.
+When this pass ran, `model.val()` precision/recall/mAP needed a labelled
+validation set and none existed. The detector was verified *working* (Day
+9/10 show `detector.available: true`) but ran pretrained YOLOv8n, so there
+was no accuracy number to report.
+
+**Closed 2026-09-30.** YOLOv8n was fine-tuned for 25 epochs on CPU against an
+aircraft surface-defect set (5 classes, CC BY 4.0):
+
+| metric | value |
+|---|---|
+| precision | 0.646 |
+| recall | 0.472 |
+| mAP50 | 0.465 |
+| mAP50-95 | 0.234 |
+
+Read honestly: recall 0.472 means it misses roughly half of what is present.
+This is a demo-grade fine-tune on a CPU, and it assists an inspection rather
+than replacing one. That framing belongs in the deck — a judge who assumes
+"working detector" means production accuracy should be corrected before they
+ask.
 
 ## What this means for the demo
 
 Every number above measures the parts of PRISM that are demo-ready today:
 local LLM speed, retrieval quality, grounded-vs-refused correctness, and
-full-stack reliability under repeated real use. The one number still
-missing (detection accuracy) is explicitly scoped and documented, not
-silently absent.
+full-stack reliability under repeated real use. Detection accuracy is now
+measured too, and is the weakest number in the set — state it plainly rather
+than letting it be discovered.
