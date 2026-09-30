@@ -95,6 +95,22 @@ def find_gutter(page) -> float | None:
     return gutter
 
 
+# Table-of-contents lines are mostly dot leaders — "6-29. General ......... 6-5".
+# They carry almost no information but embed near any query mentioning their
+# heading words, so they win retrieval slots that should hold actual guidance.
+# Measured on this corpus: ToC chunks run 0.20-0.39 alphanumeric, real prose
+# 0.81-0.82. Nothing falls between, so this threshold is not a close call.
+MIN_ALNUM_RATIO = 0.55
+
+
+def is_low_information(text: str) -> bool:
+    """True for contents/index filler that should never reach the model."""
+    if not text:
+        return True
+    alnum = sum(c.isalnum() for c in text)
+    return (alnum / len(text)) < MIN_ALNUM_RATIO
+
+
 def clean_text(text: str) -> str:
     """Repair artefacts of PDF text extraction.
 
@@ -182,6 +198,7 @@ def main() -> int:
 
     texts, metadatas = [], []
     total_empty = 0
+    dropped = 0
     for pdf in pdfs:
         t0 = time.perf_counter()
         try:
@@ -193,6 +210,9 @@ def main() -> int:
         n_before = len(texts)
         for page_no, page_text in pages:
             for chunk in splitter.split_text(page_text):
+                if is_low_information(chunk):
+                    dropped += 1
+                    continue
                 texts.append(chunk)
                 # Metadata is what lets a diagnosis cite its source. Without it
                 # the demo can only say "the manual says"; with it, it can say
@@ -207,7 +227,9 @@ def main() -> int:
               "run scripts/pdf_probe.py, then OCR them with ocrmypdf before retrying.")
         return 1
 
-    print(f"\ntotal: {len(texts)} chunks from {len(pdfs)} PDF(s); {total_empty} pages had no text")
+    print(f"\ntotal: {len(texts)} chunks from {len(pdfs)} PDF(s); "
+          f"{total_empty} pages had no text; "
+          f"{dropped} low-information chunks dropped")
     if total_empty > len(texts) * 0.5:
         print("WARNING: a lot of pages yielded no text. Check pdf_probe.py — some of\n"
               "         these PDFs may be scanned and silently contributing nothing.")
