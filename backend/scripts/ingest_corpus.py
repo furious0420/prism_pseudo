@@ -37,17 +37,86 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 MIN_PAGE_CHARS = 50
 
 
-def extract_pages(pdf_path: Path) -> tuple[list[tuple[int, str]], int]:
-    """Returns ([(page_number, text)], empty_page_count)."""
-    pages, empty = [], 0
+# A gutter is looked for only in the middle of the page — a margin is not a
+# gutter. At most this many words may cross it: a full-width heading or table
+# row spanning the columns must not veto an otherwise obvious column break.
+MAX_GUTTER_CROSSINGS = 2
+# And the columns either side must be substantially denser than the gutter,
+# so a sparse page (a figure, a title) is not mistaken for two columns.
+MIN_SIDE_DENSITY = 6
+GUTTER_ZONE = (0.35, 0.65)
+
+
+def find_gutter(page) -> float | None:
+    """The x of the column separator, or None if the page is single-column.
+
+    THE BUG THIS FIXES: these FAA circulars are two-column, and pdfplumber's
+    default extract_text() reads straight across the full page width, so it
+    interleaves the columns line by line:
+
+        "(d) Check ribs on either side of strut  physical damage or decay."
+          ^ left column                           ^ right column, glued on
+
+    Every chunk indexed that way is semantically shredded, which is what made
+    the model look stupid — it was reasoning over half-sentences.
+
+    The gutter is DETECTED, not assumed. A fixed width/2 split is wrong: real
+    gutters here sit anywhere from x=299 to x=313, and splitting at the wrong
+    x cuts words in half ("t physical damage").
+    """
+    words = page.extract_words()
+    if not words:
+        return None
+
+    # How many words cross each x-position, at 1pt resolution. Counting
+    # crossings rather than demanding a fully empty band matters twice over:
+    # real gutters here can be as narrow as 1-2pt, and a single full-width
+    # heading would otherwise veto the whole page.
+    n = int(page.width) + 2
+    crossings = [0] * n
+    for w in words:
+        for x in range(int(w["x0"]), min(int(w["x1"]) + 1, n)):
+            crossings[x] += 1
+
+    lo, hi = int(page.width * GUTTER_ZONE[0]), int(page.width * GUTTER_ZONE[1])
+    if hi <= lo:
+        return None
+    gutter = min(range(lo, hi), key=lambda x: crossings[x])
+    if crossings[gutter] > MAX_GUTTER_CROSSINGS:
+        return None
+
+    # Require real text on BOTH sides, else a sparse figure page with an
+    # incidental gap would be split into two half-empty "columns".
+    left_density = max(crossings[lo:gutter] or [0])
+    right_density = max(crossings[gutter:hi] or [0])
+    if min(left_density, right_density) < MIN_SIDE_DENSITY:
+        return None
+    return gutter
+
+
+def extract_pages(pdf_path: Path, single_column: bool = False
+                  ) -> tuple[list[tuple[int, str]], int, int]:
+    """Returns ([(page_number, text)], empty_page_count, two_column_page_count)."""
+    pages, empty, two_col = [], 0, 0
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages, start=1):
-            text = (page.extract_text() or "").strip()
+            gutter = None if single_column else find_gutter(page)
+            if gutter:
+                # Read the left column fully, then the right — the order a
+                # human reads it in, and the order the sentences make sense in.
+                left = page.crop((0, 0, gutter, page.height)).extract_text() or ""
+                right = page.crop((gutter, 0, page.width, page.height)).extract_text() or ""
+                text = "\n".join([left.strip(), right.strip()]).strip()
+                two_col += 1
+            else:
+                # Single-column, or a table/figure/contents page where no
+                # gutter exists. Falling back is correct, not a failure.
+                text = (page.extract_text() or "").strip()
             if len(text) < MIN_PAGE_CHARS:
                 empty += 1
                 continue
             pages.append((i, text))
-    return pages, empty
+    return pages, empty, two_col
 
 
 def main() -> int:
@@ -56,6 +125,8 @@ def main() -> int:
     ap.add_argument("--chunk-size", type=int, default=800)
     ap.add_argument("--overlap", type=int, default=100)
     ap.add_argument("--corpus", type=Path, default=CORPUS_DIR)
+    ap.add_argument("--single-column", action="store_true",
+                    help="force whole-page extraction (the pre-fix behaviour)")
     args = ap.parse_args()
 
     pdfs = sorted(args.corpus.rglob("*.pdf"))
@@ -83,7 +154,7 @@ def main() -> int:
     for pdf in pdfs:
         t0 = time.perf_counter()
         try:
-            pages, empty = extract_pages(pdf)
+            pages, empty, two_col = extract_pages(pdf, args.single_column)
         except Exception as e:
             print(f"  {pdf.name}: UNREADABLE ({type(e).__name__}) — skipped")
             continue
@@ -97,7 +168,8 @@ def main() -> int:
                 # which document and which page.
                 metadatas.append({"source": pdf.name, "page": page_no})
         print(f"  {pdf.name}: {len(pages)} pages with text, {empty} empty, "
-              f"{len(texts) - n_before} chunks ({time.perf_counter() - t0:.1f}s)")
+              f"{two_col} two-column, {len(texts) - n_before} chunks "
+              f"({time.perf_counter() - t0:.1f}s)")
 
     if not texts:
         print("\nNo text extracted from any PDF. They are almost certainly scans —\n"
