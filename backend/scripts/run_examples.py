@@ -26,6 +26,10 @@ from models.llm import LLMUnavailable  # noqa: E402
 from models.rag import PROMPT_TEMPLATE, diagnose  # noqa: E402
 from models.retrieval import CorpusMissing  # noqa: E402
 
+# The final query is deliberately outside the corpus. Refusing it is SUCCESS,
+# so it is judged by a different rule than the rest.
+OUT_OF_CORPUS_INDEX = 6
+
 QUERIES = [
     "Pitting corrosion on the landing gear strut, roughly 2mm deep.",
     "Hairline crack found on the wing spar cap during scheduled inspection.",
@@ -52,8 +56,15 @@ def main() -> int:
             return 1
         results.append(r)
 
+        expected_refusal = (i - 1) == OUT_OF_CORPUS_INDEX
         verdict = "OK"
-        if not r.grounded and not r.refused:
+        if expected_refusal:
+            # Retrieval will always return SOMETHING; what matters is that the
+            # model declined. Flagging "refused despite having context" here
+            # marked correct behaviour as a failure.
+            if not r.refused:
+                verdict = "ANSWERED AN OUT-OF-CORPUS QUERY"
+        elif not r.grounded and not r.refused:
             verdict = "ANSWERED WITHOUT CONTEXT"
         elif r.grounded and not r.cited_ok:
             verdict = "UNCITED or FABRICATED CITATION"
@@ -90,7 +101,7 @@ def main() -> int:
         f.write(f"- Grounded: {sum(r.grounded for r in results)}/{n}\n")
         f.write(f"- Cited correctly: {sum(r.cited_ok for r in results)}/{n}\n")
         f.write(f"- Refused: {sum(r.refused for r in results)}/{n} "
-                f"(expect at least 1 — the coffee machine query)\n")
+                f"(the coffee machine query SHOULD refuse — that one is a pass)\n")
         avg = sum(r.total_ms for r in results) / n
         f.write(f"- Average end-to-end: **{avg:.0f} ms** (feeds D11-02)\n\n")
 

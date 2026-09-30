@@ -9,6 +9,29 @@ NOTE ON IMPORTS: the tracker's D3-01 uses import paths that no longer exist.
   langchain_community.vectorstores  -> deprecated, slated for removal
   db.persist()                      -> no-op since Chroma 0.4, deleted here
 This file uses the current paths. Do not "fix" it back to the tracker's version.
+
+PROVENANCE: this file merges two independent fixes to the same underlying
+problem — the indexed chunks were not readable English, which is why the model
+looked stupid no matter how the prompt was tuned.
+
+  * Column-aware extraction (find_gutter) was written on this branch and kept,
+    on measurement rather than preference. Run head to head over all 1,350
+    pages, his variant fires on MORE pages (537 vs 434 on AC_43.13-1B, 532 vs
+    496 on AC_65-15A), and where both fire they agree almost perfectly
+    (431/434). The extra pages are not a gain: sampled and inspected, they are
+    sparse FIGURE pages — a caption and a page number, no prose — which our
+    MIN_SIDE_DENSITY guard rejects on purpose. His acceptance test also allows
+    0.02*len(words) to straddle the split rather than an absolute 2, so on 7%
+    of the pages he accepts the split cuts 3-7 words in half. Ours is the more
+    conservative detector and that is the right trade here.
+  * The furniture stripping (clean_page and its regexes) and the much stronger
+    is_low_information are Anish's, adopted wholesale. Ours only dropped
+    dot-leader contents lines; his also removes running headers, bare page
+    numbers and standalone figure/table captions, which were still riding
+    along inside otherwise-good chunks.
+  * clean_text (hyphenation repair) is ours, and has no counterpart in his.
+
+Both halves are needed. Neither alone produced clean chunks.
 """
 import argparse
 import re
@@ -37,6 +60,10 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 # cover page or a diagram. Counted and reported so a scanned manual is obvious.
 MIN_PAGE_CHARS = 50
 
+
+# ---------------------------------------------------------------------------
+# Layer 1 — column-aware extraction.
+# ---------------------------------------------------------------------------
 
 # A gutter is looked for only in the middle of the page — a margin is not a
 # gutter. At most this many words may cross it: a full-width heading or table
@@ -95,22 +122,6 @@ def find_gutter(page) -> float | None:
     return gutter
 
 
-# Table-of-contents lines are mostly dot leaders — "6-29. General ......... 6-5".
-# They carry almost no information but embed near any query mentioning their
-# heading words, so they win retrieval slots that should hold actual guidance.
-# Measured on this corpus: ToC chunks run 0.20-0.39 alphanumeric, real prose
-# 0.81-0.82. Nothing falls between, so this threshold is not a close call.
-MIN_ALNUM_RATIO = 0.55
-
-
-def is_low_information(text: str) -> bool:
-    """True for contents/index filler that should never reach the model."""
-    if not text:
-        return True
-    alnum = sum(c.isalnum() for c in text)
-    return (alnum / len(text)) < MIN_ALNUM_RATIO
-
-
 def clean_text(text: str) -> str:
     """Repair artefacts of PDF text extraction.
 
@@ -130,10 +141,99 @@ def clean_text(text: str) -> str:
     return text
 
 
+# ---------------------------------------------------------------------------
+# Layer 2 — corpus cleaning.
+#
+# pdfplumber extracts everything on the page: running headers, table-of-contents
+# lines with dotted leaders, figure captions, bare page numbers. Those chunks
+# embed and retrieve just like prose, and score HIGH because they are short and
+# topic-dense — a contents line reading "Figure 6-10. Exfoliation Corrosion"
+# looks like a perfect match for "exfoliation corrosion treatment" while
+# containing no treatment information at all.
+#
+# Two layers: strip furniture from the page text first, then drop any chunk
+# that is still mostly furniture afterwards.
+# ---------------------------------------------------------------------------
+
+# The running header, in either order: "9/11/18 AC 43-4B" or "AC 43.13-1B 9/8/98".
+# Both appear in the FAA circulars depending on odd/even page.
+# The trailing (?:\s+CHG\s+\d+)? matters: AC 43.13-1B's revised pages carry
+# "9/27/01 AC 43.13-1B CHG 1", and without it the $ anchor failed and the whole
+# header rode into the chunk. That alone accounted for most of a measured 8.5%
+# of chunks still opening with a date.
+HEADER_RE = re.compile(
+    r"^\s*(?:\d{1,2}/\d{1,2}/\d{2,4}\s+AC\s+[\w.\-]+(?:\s+CHG\s+\d+)?"
+    r"|AC\s+[\w.\-]+(?:\s+CHG\s+\d+)?\s+\d{1,2}/\d{1,2}/\d{2,4})\s*$", re.M)
+# A date alone on its line — the other half of a running header, left behind
+# when column cropping separated it from the AC number. A line that is nothing
+# but a date is never content.
+DATE_LINE_RE = re.compile(r"^\s*\d{1,2}/\d{1,2}/\d{2,4}\s*$", re.M)
+# Table-of-contents lines: text, then four or more dots, then a page reference.
+TOC_RE = re.compile(r"^.*\.{4,}\s*[\w\-]*\s*$", re.M)
+# Bare page numbers: "6-20", "4-4", "Page 17".
+PAGENUM_RE = re.compile(r"^\s*(?:Page\s+)?\d+[-–]?\d*\s*$", re.M)
+# A caption occupying its own line.
+CAPTION_RE = re.compile(r"^\s*(?:Figure|Table|FIGURE|TABLE)\s+[\d.\-]+\.?.*$", re.M)
+# A STANDALONE caption line, short enough that it cannot also be carrying prose.
+# Without the length guard, a line where extraction merged a caption into the
+# following sentence would lose the sentence too.
+CAPTION_LINE_RE = re.compile(
+    r"^[ \t]*(?:Figure|Table|FIGURE|TABLE)\s+[\d.\-]+\.?[^\n]{0,110}$", re.M)
+
+MIN_WORDS = 25          # real prose in an 800-char chunk runs well over this
+MIN_ALPHA_RATIO = 0.65  # letters and spaces as a share of the chunk
+MAX_CAPTION_SHARE = 0.5  # over half the chunk being captions = furniture
+
+
+# A contents page announces itself. These pages survived every other filter
+# because their section titles are real words in quantity, so they passed the
+# MIN_WORDS test while containing no guidance at all — exactly the chunks that
+# win a retrieval slot and then tell the model nothing.
+CONTENTS_PAGE_RE = re.compile(
+    r"CONTENTS\s*\(CONTINUED\)|^\s*(?:TABLE OF )?CONTENTS\s*$|^\s*Paragraph\s+Page\s*$",
+    re.M)
+
+
+def is_contents_page(text: str) -> bool:
+    """True for a table-of-contents page, which should not be indexed at all."""
+    return CONTENTS_PAGE_RE.search(text) is not None
+
+
+def clean_page(text: str) -> str:
+    """Strip running headers, contents lines and bare page numbers."""
+    text = HEADER_RE.sub("", text)
+    text = DATE_LINE_RE.sub("", text)
+    text = TOC_RE.sub("", text)
+    text = CAPTION_LINE_RE.sub("", text)
+    text = PAGENUM_RE.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def is_low_information(chunk: str) -> bool:
+    """True when a chunk is document furniture rather than content."""
+    stripped = chunk.strip()
+    if not stripped:
+        return True
+
+    words = re.findall(r"[A-Za-z]{3,}", stripped)
+    if len(words) < MIN_WORDS:
+        return True
+
+    alpha = sum(c.isalpha() or c.isspace() for c in stripped)
+    if alpha / len(stripped) < MIN_ALPHA_RATIO:
+        return True
+
+    caption_chars = sum(len(m.group(0)) for m in CAPTION_RE.finditer(stripped))
+    if caption_chars / len(stripped) > MAX_CAPTION_SHARE:
+        return True
+
+    return False
+
+
 def extract_pages(pdf_path: Path, single_column: bool = False
-                  ) -> tuple[list[tuple[int, str]], int, int]:
-    """Returns ([(page_number, text)], empty_page_count, two_column_page_count)."""
-    pages, empty, two_col = [], 0, 0
+                  ) -> tuple[list[tuple[int, str]], int, int, int]:
+    """Returns ([(page_no, text)], empty_pages, two_column_pages, contents_pages)."""
+    pages, empty, two_col, contents = [], 0, 0, 0
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages, start=1):
             gutter = None if single_column else find_gutter(page)
@@ -142,17 +242,26 @@ def extract_pages(pdf_path: Path, single_column: bool = False
                 # human reads it in, and the order the sentences make sense in.
                 left = page.crop((0, 0, gutter, page.height)).extract_text() or ""
                 right = page.crop((gutter, 0, page.width, page.height)).extract_text() or ""
-                text = clean_text("\n".join([left.strip(), right.strip()])).strip()
+                raw = "\n".join([left.strip(), right.strip()])
                 two_col += 1
             else:
                 # Single-column, or a table/figure/contents page where no
                 # gutter exists. Falling back is correct, not a failure.
-                text = clean_text(page.extract_text() or "").strip()
+                raw = page.extract_text() or ""
+            # Repair hyphenation BEFORE stripping furniture: the furniture
+            # patterns are line-anchored, and rejoining split words first means
+            # they match against whole lines rather than fragments.
+            text = clean_text(raw).strip()
+            # Checked BEFORE cleaning strips the very markers that identify it.
+            if is_contents_page(text):
+                contents += 1
+                continue
+            text = clean_page(text)
             if len(text) < MIN_PAGE_CHARS:
                 empty += 1
                 continue
             pages.append((i, text))
-    return pages, empty, two_col
+    return pages, empty, two_col, contents
 
 
 def main() -> int:
@@ -198,16 +307,17 @@ def main() -> int:
 
     texts, metadatas = [], []
     total_empty = 0
-    dropped = 0
+    total_dropped = 0
     for pdf in pdfs:
         t0 = time.perf_counter()
         try:
-            pages, empty, two_col = extract_pages(pdf, args.single_column)
+            pages, empty, two_col, contents = extract_pages(pdf, args.single_column)
         except Exception as e:
             print(f"  {pdf.name}: UNREADABLE ({type(e).__name__}) — skipped")
             continue
         total_empty += empty
         n_before = len(texts)
+        dropped = 0
         for page_no, page_text in pages:
             for chunk in splitter.split_text(page_text):
                 if is_low_information(chunk):
@@ -218,18 +328,25 @@ def main() -> int:
                 # the demo can only say "the manual says"; with it, it can say
                 # which document and which page.
                 metadatas.append({"source": pdf.name, "page": page_no})
+        total_dropped += dropped
         print(f"  {pdf.name}: {len(pages)} pages with text, {empty} empty, "
-              f"{two_col} two-column, {len(texts) - n_before} chunks "
-              f"({time.perf_counter() - t0:.1f}s)")
+              f"{contents} contents, {two_col} two-column, "
+              f"{len(texts) - n_before} chunks kept, "
+              f"{dropped} furniture dropped ({time.perf_counter() - t0:.1f}s)")
 
     if not texts:
         print("\nNo text extracted from any PDF. They are almost certainly scans —\n"
               "run scripts/pdf_probe.py, then OCR them with ocrmypdf before retrying.")
         return 1
 
+    kept_pct = 100 * len(texts) / max(1, len(texts) + total_dropped)
     print(f"\ntotal: {len(texts)} chunks from {len(pdfs)} PDF(s); "
-          f"{total_empty} pages had no text; "
-          f"{dropped} low-information chunks dropped")
+          f"{total_empty} pages had no text")
+    print(f"       {total_dropped} chunks dropped as document furniture "
+          f"(contents lines, captions, page headers) — {kept_pct:.0f}% kept")
+    if kept_pct < 60:
+        print("       WARNING: over 40% dropped. That is more than expected — check a\n"
+              "       few dropped chunks before trusting this index.")
     if total_empty > len(texts) * 0.5:
         print("WARNING: a lot of pages yielded no text. Check pdf_probe.py — some of\n"
               "         these PDFs may be scanned and silently contributing nothing.")
