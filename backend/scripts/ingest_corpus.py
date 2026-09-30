@@ -37,106 +37,131 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 # cover page or a diagram. Counted and reported so a scanned manual is obvious.
 MIN_PAGE_CHARS = 50
 
+# ---------------------------------------------------------------------------
+# Corpus cleaning.
+#
+# pdfplumber extracts everything on the page: running headers, table-of-contents
+# lines with dotted leaders, figure captions, bare page numbers. Those chunks
+# embed and retrieve just like prose, and score HIGH because they are short and
+# topic-dense — a contents line reading "Figure 6-10. Exfoliation Corrosion"
+# looks like a perfect match for "exfoliation corrosion treatment" while
+# containing no treatment information at all.
+#
+# Two layers: strip furniture from the page text first, then drop any chunk
+# that is still mostly furniture afterwards.
+# ---------------------------------------------------------------------------
 
-# A gutter is looked for only in the middle of the page — a margin is not a
-# gutter. At most this many words may cross it: a full-width heading or table
-# row spanning the columns must not veto an otherwise obvious column break.
-MAX_GUTTER_CROSSINGS = 2
-# And the columns either side must be substantially denser than the gutter,
-# so a sparse page (a figure, a title) is not mistaken for two columns.
-MIN_SIDE_DENSITY = 6
-GUTTER_ZONE = (0.35, 0.65)
+# The running header, in either order: "9/11/18 AC 43-4B" or "AC 43.13-1B 9/8/98".
+# Both appear in the FAA circulars depending on odd/even page.
+HEADER_RE = re.compile(
+    r"^\s*(?:\d{1,2}/\d{1,2}/\d{2,4}\s+AC\s+[\w.\-]+"
+    r"|AC\s+[\w.\-]+\s+\d{1,2}/\d{1,2}/\d{2,4})\s*$", re.M)
+# Table-of-contents lines: text, then four or more dots, then a page reference.
+TOC_RE = re.compile(r"^.*\.{4,}\s*[\w\-]*\s*$", re.M)
+# Bare page numbers: "6-20", "4-4", "Page 17".
+PAGENUM_RE = re.compile(r"^\s*(?:Page\s+)?\d+[-–]?\d*\s*$", re.M)
+# A caption occupying its own line.
+CAPTION_RE = re.compile(r"^\s*(?:Figure|Table|FIGURE|TABLE)\s+[\d.\-]+\.?.*$", re.M)
+# A STANDALONE caption line, short enough that it cannot also be carrying prose.
+# Without the length guard, a line where extraction merged a caption into the
+# following sentence would lose the sentence too.
+CAPTION_LINE_RE = re.compile(
+    r"^[ \t]*(?:Figure|Table|FIGURE|TABLE)\s+[\d.\-]+\.?[^\n]{0,110}$", re.M)
+
+MIN_WORDS = 25          # real prose in an 800-char chunk runs well over this
+MIN_ALPHA_RATIO = 0.65  # letters and spaces as a share of the chunk
+MAX_CAPTION_SHARE = 0.5 # over half the chunk being captions = furniture
 
 
-def find_gutter(page) -> float | None:
-    """The x of the column separator, or None if the page is single-column.
+def extract_page_text(page) -> str:
+    """Extract a page, reading COLUMNS DOWN rather than lines ACROSS.
 
-    THE BUG THIS FIXES: these FAA circulars are two-column, and pdfplumber's
-    default extract_text() reads straight across the full page width, so it
-    interleaves the columns line by line:
+    FAA circulars are two-column. pdfplumber's default extract_text() walks the
+    page line by line across its full width, so it glues the left column's line
+    to the right column's line and produces text like:
 
-        "(d) Check ribs on either side of strut  physical damage or decay."
-          ^ left column                           ^ right column, glued on
+        "Corrosion removal begins with cleaning the Stress corrosion cracking
+         affected area to remove all grease and soil. results from sustained..."
 
-    Every chunk indexed that way is semantically shredded, which is what made
-    the model look stupid — it was reasoning over half-sentences.
+    Every sentence is broken by an unrelated fragment. Embeddings of that are
+    close to meaningless, which is why retrieved passages read as nonsense and
+    the model sometimes declined rather than answer from them.
 
-    The gutter is DETECTED, not assumed. A fixed width/2 split is wrong: real
-    gutters here sit anywhere from x=299 to x=313, and splitting at the wrong
-    x cuts words in half ("t physical damage").
+    We find the gutter — the vertical band crossed by the fewest words — and
+    extract each side separately.
     """
     words = page.extract_words()
     if not words:
-        return None
+        return ""
 
-    # How many words cross each x-position, at 1pt resolution. Counting
-    # crossings rather than demanding a fully empty band matters twice over:
-    # real gutters here can be as narrow as 1-2pt, and a single full-width
-    # heading would otherwise veto the whole page.
-    n = int(page.width) + 2
-    crossings = [0] * n
-    for w in words:
-        for x in range(int(w["x0"]), min(int(w["x1"]) + 1, n)):
-            crossings[x] += 1
+    # Only look for a gutter in the middle 40% of the page.
+    lo, hi = page.width * 0.3, page.width * 0.7
+    best_x, best_cross = None, len(words)
+    for frac in range(30, 71, 2):
+        x = page.width * frac / 100
+        crossing = sum(1 for w in words if w["x0"] < x < w["x1"])
+        if crossing < best_cross:
+            best_x, best_cross = x, crossing
 
-    lo, hi = int(page.width * GUTTER_ZONE[0]), int(page.width * GUTTER_ZONE[1])
-    if hi <= lo:
-        return None
-    gutter = min(range(lo, hi), key=lambda x: crossings[x])
-    if crossings[gutter] > MAX_GUTTER_CROSSINGS:
-        return None
+    left = [w for w in words if w["x1"] <= best_x]
+    right = [w for w in words if w["x0"] >= best_x]
 
-    # Require real text on BOTH sides, else a sparse figure page with an
-    # incidental gap would be split into two half-empty "columns".
-    left_density = max(crossings[lo:gutter] or [0])
-    right_density = max(crossings[gutter:hi] or [0])
-    if min(left_density, right_density) < MIN_SIDE_DENSITY:
-        return None
-    return gutter
+    # Two columns only if almost nothing crosses the gutter AND both sides
+    # carry real content. A single-column page fails the second test.
+    two_column = (
+        best_x is not None
+        and best_cross <= max(2, 0.02 * len(words))
+        and min(len(left), len(right)) >= 0.2 * len(words)
+    )
+    if not two_column:
+        return page.extract_text() or ""
 
-
-def clean_text(text: str) -> str:
-    """Repair artefacts of PDF text extraction.
-
-    These circulars are typeset with hyphenation, so extracted text is full of
-    words split across lines — "pro­\ntected", "ap­\nplying". The U+00AD is a
-    SOFT HYPHEN, invisible but present, and it fragments the word for both the
-    embedding model and the LLM: "protected" and "pro" + "tected" are not the
-    same token sequence, so retrieval quietly loses recall on any hyphenated
-    term.
-    """
-    # Soft hyphen immediately before a line break: the word continues.
-    text = re.sub(r"­\s*\n\s*", "", text)
-    # Any remaining soft hyphens are invisible noise.
-    text = text.replace("­", "")
-    # Ordinary hyphen at end of line joining a word.
-    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
-    return text
+    l = page.crop((0, 0, best_x, page.height)).extract_text() or ""
+    r = page.crop((best_x, 0, page.width, page.height)).extract_text() or ""
+    return (l.strip() + "\n" + r.strip()).strip()
 
 
-def extract_pages(pdf_path: Path, single_column: bool = False
-                  ) -> tuple[list[tuple[int, str]], int, int]:
-    """Returns ([(page_number, text)], empty_page_count, two_column_page_count)."""
-    pages, empty, two_col = [], 0, 0
+def clean_page(text: str) -> str:
+    """Strip running headers, contents lines and bare page numbers."""
+    text = HEADER_RE.sub("", text)
+    text = TOC_RE.sub("", text)
+    text = CAPTION_LINE_RE.sub("", text)
+    text = PAGENUM_RE.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def is_low_information(chunk: str) -> bool:
+    """True when a chunk is document furniture rather than content."""
+    stripped = chunk.strip()
+    if not stripped:
+        return True
+
+    words = [w for w in re.findall(r"[A-Za-z]{3,}", stripped)]
+    if len(words) < MIN_WORDS:
+        return True
+
+    alpha = sum(c.isalpha() or c.isspace() for c in stripped)
+    if alpha / len(stripped) < MIN_ALPHA_RATIO:
+        return True
+
+    caption_chars = sum(len(m.group(0)) for m in CAPTION_RE.finditer(stripped))
+    if caption_chars / len(stripped) > MAX_CAPTION_SHARE:
+        return True
+
+    return False
+
+
+def extract_pages(pdf_path: Path) -> tuple[list[tuple[int, str]], int]:
+    """Returns ([(page_number, text)], empty_page_count)."""
+    pages, empty = [], 0
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages, start=1):
-            gutter = None if single_column else find_gutter(page)
-            if gutter:
-                # Read the left column fully, then the right — the order a
-                # human reads it in, and the order the sentences make sense in.
-                left = page.crop((0, 0, gutter, page.height)).extract_text() or ""
-                right = page.crop((gutter, 0, page.width, page.height)).extract_text() or ""
-                text = clean_text("\n".join([left.strip(), right.strip()])).strip()
-                two_col += 1
-            else:
-                # Single-column, or a table/figure/contents page where no
-                # gutter exists. Falling back is correct, not a failure.
-                text = clean_text(page.extract_text() or "").strip()
+            text = clean_page(extract_page_text(page).strip())
             if len(text) < MIN_PAGE_CHARS:
                 empty += 1
                 continue
             pages.append((i, text))
-    return pages, empty, two_col
+    return pages, empty
 
 
 def main() -> int:
@@ -145,8 +170,6 @@ def main() -> int:
     ap.add_argument("--chunk-size", type=int, default=800)
     ap.add_argument("--overlap", type=int, default=100)
     ap.add_argument("--corpus", type=Path, default=CORPUS_DIR)
-    ap.add_argument("--single-column", action="store_true",
-                    help="force whole-page extraction (the pre-fix behaviour)")
     args = ap.parse_args()
 
     pdfs = sorted(args.corpus.rglob("*.pdf"))
@@ -156,18 +179,7 @@ def main() -> int:
         return 1
 
     if args.reset and CHROMA_DIR.exists():
-        try:
-            shutil.rmtree(CHROMA_DIR)
-        except PermissionError as e:
-            # Windows will not delete a file another process has open, and the
-            # Flask backend holds the Chroma connection for the life of the
-            # process. The raw traceback points at data_level0.bin, which says
-            # nothing about the actual cause.
-            print(f"\nCannot wipe {CHROMA_DIR} — a process is still using it.")
-            print(f"  ({e.__class__.__name__}: {e.filename})")
-            print("  fix -> stop the backend (python app.py) and any open Python"
-                  " shell that imported models.retrieval, then re-run.")
-            return 1
+        shutil.rmtree(CHROMA_DIR)
         print(f"wiped {CHROMA_DIR}")
 
     print(f"corpus : {args.corpus}\nchunk  : {args.chunk_size} chars, {args.overlap} overlap\n")
@@ -182,24 +194,30 @@ def main() -> int:
 
     texts, metadatas = [], []
     total_empty = 0
+    total_dropped = 0
     for pdf in pdfs:
         t0 = time.perf_counter()
         try:
-            pages, empty, two_col = extract_pages(pdf, args.single_column)
+            pages, empty = extract_pages(pdf)
         except Exception as e:
             print(f"  {pdf.name}: UNREADABLE ({type(e).__name__}) — skipped")
             continue
         total_empty += empty
         n_before = len(texts)
+        dropped = 0
         for page_no, page_text in pages:
             for chunk in splitter.split_text(page_text):
+                if is_low_information(chunk):
+                    dropped += 1
+                    continue
                 texts.append(chunk)
                 # Metadata is what lets a diagnosis cite its source. Without it
                 # the demo can only say "the manual says"; with it, it can say
                 # which document and which page.
                 metadatas.append({"source": pdf.name, "page": page_no})
+        total_dropped += dropped
         print(f"  {pdf.name}: {len(pages)} pages with text, {empty} empty, "
-              f"{two_col} two-column, {len(texts) - n_before} chunks "
+              f"{len(texts) - n_before} chunks kept, {dropped} furniture dropped "
               f"({time.perf_counter() - t0:.1f}s)")
 
     if not texts:
@@ -207,7 +225,14 @@ def main() -> int:
               "run scripts/pdf_probe.py, then OCR them with ocrmypdf before retrying.")
         return 1
 
-    print(f"\ntotal: {len(texts)} chunks from {len(pdfs)} PDF(s); {total_empty} pages had no text")
+    kept_pct = 100 * len(texts) / max(1, len(texts) + total_dropped)
+    print(f"\ntotal: {len(texts)} chunks from {len(pdfs)} PDF(s); "
+          f"{total_empty} pages had no text")
+    print(f"       {total_dropped} chunks dropped as document furniture "
+          f"(contents lines, captions, page headers) — {kept_pct:.0f}% kept")
+    if kept_pct < 60:
+        print("       WARNING: over 40% dropped. That is more than expected — check a\n"
+              "       few dropped chunks before trusting this index.")
     if total_empty > len(texts) * 0.5:
         print("WARNING: a lot of pages yielded no text. Check pdf_probe.py — some of\n"
               "         these PDFs may be scanned and silently contributing nothing.")

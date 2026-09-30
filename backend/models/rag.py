@@ -16,6 +16,7 @@ than from whatever it remembers. Three things enforce that:
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 import time
@@ -33,9 +34,14 @@ if __package__ in (None, ""):
 from models.llm import LLMUnavailable, generate_with_stats
 from models.retrieval import CorpusMissing, Hit, format_context, search
 
-# Below this cosine similarity we treat retrieval as having found nothing
-# useful. Calibrate against logs/day3_retrieval.md once you have real numbers.
-GROUNDING_THRESHOLD = 0.25
+# Below this cosine similarity we treat retrieval as having found nothing useful.
+#
+# Calibrated 2026-09-30 against the real corpus (8,058 chunks, 3 FAA manuals).
+# Genuine technician queries score 0.587-0.765. At the old 0.25, the gibberish
+# query "asdfkjh qwerty zxcvbn" came back grounded=True — the model declined on
+# its own, but the threshold had let junk through. 0.45 sits comfortably below
+# every real hit and above the noise.
+GROUNDING_THRESHOLD = float(os.getenv("PRISM_GROUNDING_THRESHOLD", "0.45"))
 
 DEFAULT_K = 3
 DEFAULT_MAX_TOKENS = 400
@@ -50,6 +56,9 @@ knowledge, even if you are confident it is correct.
 Rules:
 - Cite the source for every claim, in the form [document p.N], exactly as the \
 extract is labelled.
+- Write the answer in your own words. Do NOT copy sentences, figure captions, \
+table headings, document numbers or dates out of the extracts. The citation \
+points the technician at the source; your job is to say what it means.
 - If the extracts do not cover the query, reply exactly: \
 "The provided manual extracts do not cover this." Do not guess.
 - Be concise and practical. A technician is reading this at the aircraft.
@@ -78,49 +87,11 @@ REFUSAL = "The provided manual extracts do not cover this."
 # Matches the [document p.12] citation form the prompt asks for.
 CITATION_RE = re.compile(r"\[([^\]]+?)\s+p\.(\d+)\]")
 
-# "Likely defect: ..." and "1. do the thing", from the answer format above.
-DEFECT_RE = re.compile(r"^\s*likely defect\s*:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
-ACTION_RE = re.compile(r"^\s*(\d+)[.)]\s+(.*\S)\s*$", re.MULTILINE)
-
-
-def _parse_structure(text: str) -> tuple[Optional[str], list[str]]:
-    """Opportunistically pull a likely-defect line and numbered actions out of
-    the answer, if the model happened to produce them.
-
-    NOT prompt-driven, deliberately. Instructing the model to always emit a
-    "Likely defect / numbered actions" format was tried and reverted: asking
-    phi3:mini for a citation per action made it mangle the document name
-    ("AC_430.13-1B" for "AC_43.13-1B"), which _check_citations correctly reads
-    as a fabricated citation, and tightening the format to one citation then
-    sent it into a repetition loop that Ollama aborted with a 500. Both are in
-    logs/day4_examples.md history. So the prompt is left as verified, and this
-    parses structure only when it appears naturally — which it often does.
-
-    Best-effort: anything unparsed comes back empty and the UI falls back to
-    the prose. Never raises, never invents.
-    """
-    m = DEFECT_RE.search(text or "")
-    defect = m.group(1).strip() if m else None
-
-    actions: list[str] = []
-    seen_numbers: set[int] = set()
-    for num, body in ACTION_RE.findall(text or ""):
-        n = int(num)
-        # Guard against a restarting or duplicated list — take the first
-        # occurrence of each number only.
-        if n in seen_numbers:
-            continue
-        seen_numbers.add(n)
-        actions.append(body.strip())
-    return defect, actions
-
 
 @dataclass
 class DiagnosisResult:
     query: str
     diagnosis: str
-    likely_defect: Optional[str] = None
-    actions: list[str] = field(default_factory=list)
     hits: list[Hit] = field(default_factory=list)
     citations: list[str] = field(default_factory=list)
     grounded: bool = True      # retrieval found something above threshold
@@ -141,18 +112,9 @@ class DiagnosisResult:
         return {
             "query": self.query,
             "diagnosis": self.diagnosis,
-            # Structured form of the same answer, when the model honoured the
-            # format. Empty is normal and the UI falls back to the prose.
-            "likely_defect": self.likely_defect,
-            "actions": self.actions,
             "citations": self.citations,
             "sources": [
-                # `text` is the actual retrieved passage. Without it the UI can
-                # say WHICH page was cited but not WHAT it said, which is the
-                # one thing that proves the answer is grounded rather than
-                # recalled — the most probe-worthy claim in the whole demo.
-                {"source": h["source"], "page": h["page"], "score": h["score"],
-                 "text": h["text"]}
+                {"source": h["source"], "page": h["page"], "score": h["score"]}
                 for h in self.hits
             ],
             "grounded": self.grounded,
@@ -223,7 +185,6 @@ def diagnose(
 
     text = gen.text.strip()
     refused = _is_refusal(text)
-    likely_defect, actions = (None, []) if refused else _parse_structure(text)
     citations, cited_ok = _check_citations(text, hits)
     if refused or not grounded:
         # Declining is the correct behaviour with no context; do not mark it
@@ -233,8 +194,6 @@ def diagnose(
     return DiagnosisResult(
         query=query,
         diagnosis=text,
-        likely_defect=likely_defect,
-        actions=actions,
         hits=hits if grounded else [],
         citations=citations,
         grounded=grounded,

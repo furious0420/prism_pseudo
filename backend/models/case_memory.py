@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
-import tempfile
 from pathlib import Path
 from typing import Optional, TypedDict
 
@@ -120,83 +118,3 @@ def case_memory_info() -> dict:
     if not cases:
         return {"available": False, "reason": _load_error}
     return {"available": True, "cases": len(cases), "path": str(CASES_PATH)}
-
-
-def list_cases() -> list[dict]:
-    """All cases, newest (highest case_id) first, for the Case History tab."""
-    cases, _ = _load()
-    return sorted(cases, key=lambda c: str(c.get("case_id", "")), reverse=True)
-
-
-_ID_RE = re.compile(r"^HC-(\d+)$")
-
-
-def _next_case_id(existing: list[dict]) -> str:
-    highest = 0
-    for c in existing:
-        m = _ID_RE.match(str(c.get("case_id", "")))
-        if m:
-            highest = max(highest, int(m.group(1)))
-    return f"HC-{highest + 1:03d}"
-
-
-def log_case(
-    defect_type: str,
-    symptom_description: str,
-    diagnosis: str,
-    resolution: str,
-    risk_score: str,
-) -> dict:
-    """Append a new case, written back by the frontend's "Mark as Resolved"
-    flow (D9-era UI addition, not in the 13-day tracker).
-
-    Reads the file fresh from disk — not the module cache — since disk is
-    the source of truth for a write. Writes via a temp file + os.replace()
-    (atomic on POSIX and Windows) so a crash mid-write can never leave
-    history_cases.json truncated or corrupt, which would break case memory
-    for every request until someone notices and fixes the file by hand.
-    """
-    if CASES_PATH.is_file():
-        try:
-            existing = json.loads(CASES_PATH.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(f"{CASES_PATH.name} is not valid JSON: {e}") from e
-        if not isinstance(existing, list):
-            raise ValueError(f"{CASES_PATH.name} must contain a JSON array of case objects.")
-    else:
-        existing = []
-
-    case = {
-        "case_id": _next_case_id(existing),
-        "defect_type": defect_type or "unspecified",
-        "symptom_description": symptom_description,
-        "diagnosis": diagnosis,
-        "resolution": resolution,
-        "risk_score": risk_score or "",
-    }
-    existing.append(case)
-
-    CASES_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(CASES_PATH.parent), prefix=".history_cases_", suffix=".json.tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(existing, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp_path, CASES_PATH)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-        raise
-
-    # Invalidate the module cache so the next find_similar_cases() call
-    # re-reads and re-embeds the file, including this new case. Without
-    # this, _load()'s "loaded once" guard would keep serving the stale
-    # in-memory list for the rest of the process's life.
-    global _cases, _vectors, _load_error
-    _cases = None
-    _vectors = None
-    _load_error = None
-
-    return case
