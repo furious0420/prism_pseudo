@@ -91,20 +91,53 @@ model.
 ## Demo assets
 
 - Live app: `backend/` then `frontend/` (see README) — http://localhost:5173
-- Sample photo for the detection path: `sample_images/` (public domain, with a
-  README explaining why a corrosion photo detects nothing today)
+- Sample images for the detection path: `sample_images/` — two held-out
+  validation images (CC BY 4.0) the fine-tuned detector fires on, with the
+  detections and risk arbitration written up in its README
 - Evidence logs: `backend/logs/*.md` — every number in the table above
 - Original pitch mockup: `docs/prism_demo_v4.html`
 
 ## Still to do before freeze
 
-| Item | Priority |
-|---|---|
-| Record the backup demo video (D12-02) | **Mandatory** |
-| Source a defect dataset + fine-tune YOLOv8 (D5/D6) | High — closes the one broken pillar |
-| Bug-fix pass on the two known cosmetic issues (below) | Medium |
-| S3 bootstrap when AWS returns | Low — script is ready, zero new code |
+### Mandatory
 
-Known cosmetic issues, neither affecting correctness: a stray raw-text fragment
-occasionally leads the diagnosis, and one corpus chunk is a table-of-contents dot
-leader. Both are documented in `logs/day10_integration.md`.
+| Item | Why it cannot slip |
+|---|---|
+| **Record the backup demo video (D12-02)** | The fallback if anything fails live. A 3.9 GB model, a 50 MB index and a CPU detector are three things that can misbehave on someone else's laptop. |
+
+### Frontend — features and design
+
+The UI works and covers all four tabs, but several things the pipeline already
+computes are never shown. These are ordered by demo impact per hour of work.
+
+| # | Item | Notes |
+|---|---|---|
+| 1 | **Bounding-box overlay on the uploaded image** | **Highest value in the list.** `detect()` already returns `box: [x1, y1, x2, y2]` for every detection and the API already sends it — `App.jsx` renders a plain `<img>` and throws the coordinates away. Draw them on a canvas or as absolutely-positioned divs, labelled with class + confidence, coloured by severity. Nothing new is needed server-side. The original mockup had an `overlay` element for exactly this. |
+| 2 | **Severity colour on each box and detection row** | Reuse the existing `.risk-*` tokens so a Critical crack reads red and a Low scratch reads grey. Makes `worst_risk()` legible at a glance instead of only in the Risk panel. |
+| 3 | **Export a diagnosis as a report** | Print stylesheet or PDF. An MRO finding that cannot leave the screen is not a paper trail, and it is the question an aerospace judge is most likely to ask. |
+| 4 | **Tablet layout pass** | The two-column dashboard assumes a laptop. A technician at an airframe is holding a tablet. Worth one responsive breakpoint. |
+| 5 | **Per-detection crop thumbnails** | Crop each box from the upload and show it beside the row, so a 0.52 crack can be eyeballed rather than trusted. |
+| 6 | **Confidence-threshold slider** | Let the user raise the bar past 0.5 and watch marginal detections drop out. Honest about a recall-0.472 model, and demonstrates the trade-off rather than hiding it. |
+| 7 | **Accessibility and keyboard pass** | Focus order, labels on the telemetry inputs, contrast check on the navy/teal theme. |
+
+### Backend and evidence
+
+| Item | Notes |
+|---|---|
+| **D6-02 — detection verification log** | Every other tracker day has a `logs/dayN_*.md`; Day 6 does not. Run `model.val()` formally and write `logs/day6_detection.md` with per-class precision/recall, not just the aggregate. |
+| **Fix the leading raw-text fragment** | A diagnosis occasionally opens with a stray fragment. Cosmetic, but it is the first thing a viewer reads. |
+| **The phi3 citation slip** | Query 1 reproducibly mangles `AC_43.13-1B` into `AC_430.13-1B`. The checker catches it and the UI warns, so this is presentation, not correctness. Options: try a shorter source label, or leave it and let the guard-rail be the story. Do NOT loosen `_check_citations` to make the number read 7/7. |
+| **D13 — feature freeze** | Then handoff notes and the pitch-deck summary. |
+
+### AWS — blocked, not forgotten
+
+| Item | State |
+|---|---|
+| Bucket + data | **Done, by console upload.** See `docs/aws_setup.md`. |
+| `s3_check.py` / `s3_sync.py` verification | **Blocked.** This account issues no programmatic credentials — every relevant `iam:*` action is denied. Both scripts are written, reviewed and correct; they run the moment an admin grants a key. |
+| `images/raw/` | Left empty deliberately — nothing unlabelled to put there yet. |
+
+Known cosmetic issues, neither affecting correctness, are documented in
+`logs/day10_integration.md`. The table-of-contents dot-leader chunks noted
+there are now largely gone: the corpus rework dropped 34 contents pages and
+595 furniture chunks, leaving dot-leaders in 0.6% of the index.

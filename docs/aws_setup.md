@@ -40,9 +40,32 @@ Tags must be set here in the console, not by a script: the IAM policy below
 deliberately does not grant `s3:PutBucketTagging`, so nothing running on your
 machine can change the billing tags.
 
-## Step 2 — Create the IAM user and its access keys
+## Step 2 — Access keys: BLOCKED on this account
 
-Use a dedicated user rather than root credentials.
+> **What actually happened, 2026-09-30.** This account's console user
+> (`kamleshj2004@gmail.com`, account `121444773857`) has **no IAM permissions
+> at all**. `iam:ListUsers`, `iam:ListAccessKeys`, `iam:ListMFADevices` and
+> `iam:ListSigningCertificates` are each denied with "no identity-based policy
+> allows the action". So a `prism-dev` user cannot be created, and the user
+> cannot issue access keys for themselves either.
+>
+> **No programmatic credentials are obtainable**, which means `boto3` cannot
+> authenticate and neither `s3_check.py` nor `s3_sync.py` can run.
+>
+> **Route taken instead:** the bucket was populated by console upload, which
+> needs no keys. Files were staged locally with their final names and dragged
+> into the matching folders. This satisfies the D1-02 deliverable — the data
+> and the prefix layout are real — but it is **console-completed, not
+> script-verified**: region, tags and prefixes were never machine-checked.
+> Record it that way in the tracker rather than as a clean pass.
+>
+> Both scripts are kept as written. They are correct and become usable the
+> moment anyone obtains keys. To unblock, ask the hackathon AWS admin for
+> either an IAM user with `infra/iam-policy-prism-dev.json` attached, or
+> `iam:CreateAccessKey` on the existing user.
+
+The rest of this section applies **only** if an admin grants IAM access. Use a
+dedicated user rather than root credentials.
 
 1. **IAM → Users → Create user.** Name it `prism-dev`.
 2. Do **not** give it console access — this user is only for the scripts.
