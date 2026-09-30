@@ -24,10 +24,14 @@ yarn-error.log*
 *.pt
 *.pth
 *.onnx
-vision/weights/
-nlp/models/
 backend/chroma_db/
 backend/logs/*.mp4
+# Source parquet for the vision dataset — regenerable by re-downloading, and
+# redundant once scripts/convert_hf_dataset.py has produced images/ + labels/.
+backend/data/vision_dataset/_raw/
+# ultralytics training output (weights already covered by *.pt above)
+runs/
+backend/runs/
 
 # --- Backend runtime artifacts ---
 backend/venv/
