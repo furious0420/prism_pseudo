@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 720" role="img" aria-label="PRISM solution architecture: a React dashboard posts photo, telemetry and a query to a Flask API, which runs four failure-isolated stages (vision detection, risk scoring, RAG diagnosis with Phi-3 Mini, case memory) entirely on the edge device and streams each stage back over SSE; cloud sync to AWS is planned but not built." font-family="Segoe UI, Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#000000"/></marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0000B3"/></marker>
+  </defs>
+
+  <rect width="1480" height="720" fill="#FFFFFF"/>
+
+  <!-- title -->
+  <text x="30" y="30" font-size="20" font-weight="700" fill="#0000B3">Four stages feed one local LLM, and nothing leaves the device</text>
+
+  <!-- edge device boundary -->
+  <rect x="15" y="48" width="1195" height="652" rx="18" fill="none" stroke="#000000" stroke-width="1.2" stroke-dasharray="8 6"/>
+  <text x="34" y="72" font-size="12" font-weight="700" letter-spacing="1" fill="#0000B3">EDGE DEVICE · RUNS WITH NO NETWORK</text>
+
+  <!-- pipeline group -->
+  <rect x="520" y="88" width="310" height="576" rx="16" fill="none" stroke="#000000" stroke-width="1.2"/>
+  <text x="540" y="110" font-size="12" font-weight="700" letter-spacing="1" fill="#0000B3">PIPELINE · EACH STAGE ISOLATED</text>
+
+  <!-- client -->
+  <rect x="30" y="300" width="160" height="100" rx="14" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="110" y="342" text-anchor="middle" font-size="15" font-weight="700" fill="#0000B3">React dashboard</text>
+  <text x="110" y="364" text-anchor="middle" font-size="12" fill="#000000">photo · telemetry · query</text>
+
+  <!-- flask -->
+  <rect x="290" y="300" width="150" height="100" rx="14" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="365" y="342" text-anchor="middle" font-size="15" font-weight="700" fill="#0000B3">Flask API</text>
+  <text x="365" y="364" text-anchor="middle" font-size="12" fill="#000000">/diagnose/stream</text>
+
+  <!-- ui -> flask -->
+  <line x1="190" y1="350" x2="288" y2="350" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="239" y="340" text-anchor="middle" font-size="11" fill="#000000">multipart</text>
+  <text x="239" y="368" text-anchor="middle" font-size="11" fill="#000000">POST</text>
+
+  <!-- flask -> pipeline -->
+  <polyline points="440,350 480,350 480,162 538,162" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+
+  <!-- SSE back -->
+  <polyline points="365,402 365,470 110,470 110,402" fill="none" stroke="#0000B3" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#ab)"/>
+  <text x="237" y="492" text-anchor="middle" font-size="12" fill="#000000">SSE: one event per stage,</text>
+  <text x="237" y="508" text-anchor="middle" font-size="12" fill="#000000">so the UI fills as work completes</text>
+
+  <!-- stage 1 -->
+  <rect x="540" y="124" width="270" height="72" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="556" y="152" font-size="15" font-weight="700" fill="#0000B3">1 · Vision detection</text>
+  <text x="556" y="174" font-size="12" fill="#000000">YOLOv8 + OpenCV · skipped if no image</text>
+  <line x1="675" y1="196" x2="675" y2="230" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="687" y="218" font-size="11" fill="#000000">defect + confidence</text>
+
+  <!-- stage 2 -->
+  <rect x="540" y="232" width="270" height="72" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="556" y="260" font-size="15" font-weight="700" fill="#0000B3">2 · Risk scoring</text>
+  <text x="556" y="282" font-size="12" fill="#000000">rule-based, SAE J1979 thresholds → 0–100</text>
+  <line x1="675" y1="304" x2="675" y2="342" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="687" y="328" font-size="11" fill="#000000">risk band + defect text</text>
+
+  <!-- stage 3 -->
+  <rect x="540" y="344" width="270" height="170" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="556" y="368" font-size="15" font-weight="700" fill="#0000B3">3 · RAG diagnosis</text>
+  <rect x="560" y="380" width="230" height="44" rx="8" fill="#FFFFFF" stroke="#000000" stroke-width="1"/>
+  <text x="675" y="407" text-anchor="middle" font-size="13" fill="#000000">Retrieve top-3 manual chunks</text>
+  <line x1="675" y1="424" x2="675" y2="448" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="687" y="441" font-size="11" fill="#000000">cited context</text>
+  <rect x="560" y="450" width="230" height="44" rx="8" fill="#FFFFFF" stroke="#000000" stroke-width="1"/>
+  <text x="675" y="477" text-anchor="middle" font-size="13" fill="#000000">Generate + check citations</text>
+  <line x1="675" y1="514" x2="675" y2="548" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="687" y="536" font-size="11" fill="#000000">query text</text>
+
+  <!-- stage 4 -->
+  <rect x="540" y="550" width="270" height="72" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="556" y="578" font-size="15" font-weight="700" fill="#0000B3">4 · Case memory</text>
+  <text x="556" y="600" font-size="12" fill="#000000">similar past cases · log new case</text>
+
+  <!-- manuals -> chroma -->
+  <rect x="920" y="250" width="250" height="70" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="936" y="280" font-size="14" font-weight="700" fill="#0000B3">FAA manuals (PDF)</text>
+  <text x="936" y="301" font-size="12" fill="#000000">AC 43.13-1B · 20-106 · 65-15A</text>
+  <line x1="1045" y1="320" x2="1045" y2="370" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="1057" y="349" font-size="11" fill="#000000">ingest_corpus.py, once</text>
+
+  <!-- chroma -->
+  <rect x="920" y="372" width="250" height="60" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="936" y="398" font-size="14" font-weight="700" fill="#0000B3">ChromaDB vector store</text>
+  <text x="936" y="418" font-size="12" fill="#000000">MiniLM-L6-v2 embeddings</text>
+  <line x1="790" y1="402" x2="918" y2="402" stroke="#000000" stroke-width="1.5" marker-end="url(#ak)"/>
+  <text x="854" y="394" text-anchor="middle" font-size="11" fill="#000000">cosine top-3</text>
+
+  <!-- llm: the one solid blue block -->
+  <rect x="920" y="442" width="250" height="60" rx="12" fill="#0000B3"/>
+  <text x="936" y="468" font-size="14" font-weight="700" fill="#FFFFFF">Phi-3 Mini 3.8B (INT4)</text>
+  <text x="936" y="488" font-size="12" fill="#FFFFFF">Ollama, else llama.cpp GGUF</text>
+  <line x1="790" y1="472" x2="918" y2="472" stroke="#000000" stroke-width="1.5" marker-start="url(#ak)" marker-end="url(#ak)"/>
+  <text x="854" y="464" text-anchor="middle" font-size="11" fill="#000000">prompt ⇄ answer</text>
+
+  <!-- case json -->
+  <rect x="920" y="550" width="250" height="72" rx="12" fill="#F3F4FA" stroke="#000000" stroke-width="1"/>
+  <text x="936" y="578" font-size="14" font-weight="700" fill="#0000B3">history_cases.json</text>
+  <text x="936" y="600" font-size="12" fill="#000000">rolling case store</text>
+  <line x1="810" y1="586" x2="918" y2="586" stroke="#000000" stroke-width="1.5" marker-start="url(#ak)" marker-end="url(#ak)"/>
+  <text x="864" y="578" text-anchor="middle" font-size="11" fill="#000000">lookup · log</text>
+
+  <!-- cloud (outside boundary, dashed = planned) -->
+  <text x="1360" y="536" text-anchor="middle" font-size="12" font-weight="700" letter-spacing="1" fill="#0000B3">CLOUD (OPTIONAL)</text>
+  <rect x="1270" y="550" width="180" height="72" rx="12" fill="#FFFFFF" stroke="#000000" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="1286" y="578" font-size="14" font-weight="700" fill="#0000B3">AWS Greengrass + S3</text>
+  <text x="1286" y="600" font-size="12" fill="#000000">planned, not yet built</text>
+  <line x1="1170" y1="586" x2="1268" y2="586" stroke="#000000" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#ak)"/>
+  <text x="1219" y="572" text-anchor="middle" font-size="11" fill="#000000">sync when</text>
+  <text x="1219" y="608" text-anchor="middle" font-size="11" fill="#000000">online</text>
+
+  <!-- legend -->
+  <g font-size="12" fill="#000000">
+    <rect x="30" y="640" width="16" height="16" rx="4" fill="#F3F4FA" stroke="#000000" stroke-width="1"/><text x="54" y="653">Component / store</text>
+    <rect x="190" y="640" width="16" height="16" rx="4" fill="#0000B3"/><text x="214" y="653">Local LLM</text>
+    <line x1="300" y1="648" x2="330" y2="648" stroke="#0000B3" stroke-width="2" stroke-dasharray="5 3"/><text x="338" y="653">Streamed result</text>
+  </g>
+</svg>
