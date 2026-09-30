@@ -1,0 +1,6 @@
+path: C:/Users/kamle/Downloads/prism/backend/data/vision_dataset
+train: images/train
+val: images/val
+
+nc: 4
+names: ["corrosion-0", "Slippage", "corrosion", "crack"]
