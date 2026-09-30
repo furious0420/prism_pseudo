@@ -11,6 +11,7 @@ NOTE ON IMPORTS: the tracker's D3-01 uses import paths that no longer exist.
 This file uses the current paths. Do not "fix" it back to the tracker's version.
 """
 import argparse
+import re
 import shutil
 import sys
 import time
@@ -94,6 +95,25 @@ def find_gutter(page) -> float | None:
     return gutter
 
 
+def clean_text(text: str) -> str:
+    """Repair artefacts of PDF text extraction.
+
+    These circulars are typeset with hyphenation, so extracted text is full of
+    words split across lines — "pro­\ntected", "ap­\nplying". The U+00AD is a
+    SOFT HYPHEN, invisible but present, and it fragments the word for both the
+    embedding model and the LLM: "protected" and "pro" + "tected" are not the
+    same token sequence, so retrieval quietly loses recall on any hyphenated
+    term.
+    """
+    # Soft hyphen immediately before a line break: the word continues.
+    text = re.sub(r"­\s*\n\s*", "", text)
+    # Any remaining soft hyphens are invisible noise.
+    text = text.replace("­", "")
+    # Ordinary hyphen at end of line joining a word.
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+    return text
+
+
 def extract_pages(pdf_path: Path, single_column: bool = False
                   ) -> tuple[list[tuple[int, str]], int, int]:
     """Returns ([(page_number, text)], empty_page_count, two_column_page_count)."""
@@ -106,12 +126,12 @@ def extract_pages(pdf_path: Path, single_column: bool = False
                 # human reads it in, and the order the sentences make sense in.
                 left = page.crop((0, 0, gutter, page.height)).extract_text() or ""
                 right = page.crop((gutter, 0, page.width, page.height)).extract_text() or ""
-                text = "\n".join([left.strip(), right.strip()]).strip()
+                text = clean_text("\n".join([left.strip(), right.strip()])).strip()
                 two_col += 1
             else:
                 # Single-column, or a table/figure/contents page where no
                 # gutter exists. Falling back is correct, not a failure.
-                text = (page.extract_text() or "").strip()
+                text = clean_text(page.extract_text() or "").strip()
             if len(text) < MIN_PAGE_CHARS:
                 empty += 1
                 continue
@@ -136,7 +156,18 @@ def main() -> int:
         return 1
 
     if args.reset and CHROMA_DIR.exists():
-        shutil.rmtree(CHROMA_DIR)
+        try:
+            shutil.rmtree(CHROMA_DIR)
+        except PermissionError as e:
+            # Windows will not delete a file another process has open, and the
+            # Flask backend holds the Chroma connection for the life of the
+            # process. The raw traceback points at data_level0.bin, which says
+            # nothing about the actual cause.
+            print(f"\nCannot wipe {CHROMA_DIR} — a process is still using it.")
+            print(f"  ({e.__class__.__name__}: {e.filename})")
+            print("  fix -> stop the backend (python app.py) and any open Python"
+                  " shell that imported models.retrieval, then re-run.")
+            return 1
         print(f"wiped {CHROMA_DIR}")
 
     print(f"corpus : {args.corpus}\nchunk  : {args.chunk_size} chars, {args.overlap} overlap\n")
