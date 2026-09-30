@@ -9,7 +9,7 @@
         "s3:GetBucketLocation",
         "s3:GetBucketTagging"
       ],
-      "Resource": "arn:aws:s3:::REPLACE_WITH_BUCKET_NAME"
+      "Resource": "arn:aws:s3:::prism-mro-innovent27"
     },
     {
       "Sid": "ReadWriteObjectsInPrismBucket",
@@ -19,7 +19,7 @@
         "s3:PutObject",
         "s3:DeleteObject"
       ],
-      "Resource": "arn:aws:s3:::REPLACE_WITH_BUCKET_NAME/*"
+      "Resource": "arn:aws:s3:::prism-mro-innovent27/*"
     }
   ]
 }

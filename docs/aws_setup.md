@@ -47,11 +47,11 @@ Use a dedicated user rather than root credentials.
 1. **IAM → Users → Create user.** Name it `prism-dev`.
 2. Do **not** give it console access — this user is only for the scripts.
 3. **Permissions → Attach policies directly → Create policy → JSON tab.**
-4. Paste the contents of [`infra/iam-policy-prism-dev.json`](../infra/iam-policy-prism-dev.json),
-   and **replace both occurrences of `REPLACE_WITH_BUCKET_NAME`** with your real
-   bucket name. There are two — one without `/*` (the bucket itself) and one
-   with (the objects inside). Both are needed; S3 treats them as separate
-   resources.
+4. Paste the contents of [`infra/iam-policy-prism-dev.json`](../infra/iam-policy-prism-dev.json)
+   as-is. It is already scoped to the real bucket, `prism-mro-innovent27`. The
+   two ARNs are both needed and are not a duplicate: one without `/*` is the
+   bucket itself (for listing), one with `/*` is the objects inside it. S3
+   treats them as separate resources.
 5. Name the policy `prism-dev-s3` and create it, then attach it to the user.
 6. Open the user → **Security credentials** tab → **Create access key** →
    choose **Application running outside AWS** → Create.
@@ -80,8 +80,11 @@ Open `backend/.env` (it already exists) and fill in the four values:
 AWS_ACCESS_KEY_ID=AKIA...................
 AWS_SECRET_ACCESS_KEY=........................................
 AWS_DEFAULT_REGION=ap-south-1
-PRISM_S3_BUCKET=prism-mro-yourname
+PRISM_S3_BUCKET=prism-mro-innovent27
 ```
+
+The region and bucket name are already filled in. Only the two key values are
+missing, and they are the two that must never leave your machine.
 
 `backend/.env` is gitignored, so these can never be committed. Do not paste
 them into chat, a ticket, or a screenshot.
@@ -142,6 +145,7 @@ PRISM stores roughly 250 MB and touches it rarely. There is no compute running.
 | Symptom | Cause |
 |---|---|
 | `bucket does not exist (404)` | Name typo, or the bucket is in a different account |
-| `credentials lack s3:GetBucketLocation (403)` | Policy not attached, or `REPLACE_WITH_BUCKET_NAME` was never substituted |
+| `credentials lack s3:GetBucketLocation (403)` | Policy not attached to the user, or attached to a different user |
+| `AccessDenied` on the write probe, though S3 actions look correct | The bucket was created with **SSE-KMS** instead of SSE-S3. Every `PutObject` then also needs `kms:GenerateDataKey` and every `GetObject` needs `kms:Decrypt`, which this policy deliberately does not grant. Recreate the bucket with SSE-S3. |
 | `bucket is in us-east-1, expected ap-south-1` | Created before switching region — delete it and recreate |
 | `no AWS credentials found` | `.env` values still blank, or the file was not saved |
