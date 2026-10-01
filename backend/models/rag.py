@@ -34,8 +34,11 @@ from models.llm import LLMUnavailable, generate_with_stats
 from models.retrieval import CorpusMissing, Hit, format_context, search
 
 # Below this cosine similarity we treat retrieval as having found nothing
-# useful. Calibrate against logs/day3_retrieval.md once you have real numbers.
-GROUNDING_THRESHOLD = 0.25
+# useful. 0.38 blocks an off-topic query (coffee machine, top score 0.376)
+# without touching any real query tested (lowest was 0.464). Retrieval score
+# cannot separate related-but-unanswerable queries (e.g. A380 tire pressure,
+# 0.49) from real ones; those rely on the model declining.
+GROUNDING_THRESHOLD = 0.38
 
 DEFAULT_K = 3
 DEFAULT_MAX_TOKENS = 400
