@@ -24,7 +24,7 @@ body {
   font: 16px/1.6 "Segoe UI Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 760px; margin: 0 auto; padding: 0 0 72px; }
+.wrap { max-width: 1600px; margin: 0 auto; padding: 0 0 72px; }
 
 /* ---------- brand header ---------- */
 .topbar {
@@ -32,7 +32,7 @@ body {
   padding: 28px 20px 26px; margin-bottom: 24px;
   border-bottom: 1px solid rgba(94, 234, 212, .18);
 }
-.topbar-inner { max-width: 760px; margin: 0 auto; display: flex; align-items: center;
+.topbar-inner { max-width: 1600px; margin: 0 auto; display: flex; align-items: center;
                 justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .mark {
@@ -57,9 +57,9 @@ h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; color: #fff; line-he
 }
 @keyframes blip { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
 
-.content { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+.content { max-width: 1600px; margin: 0 auto; padding: 0 16px; }
 /* Single-column tabs stay readable instead of stretching to the full grid width. */
-.narrow { max-width: 760px; }
+.narrow { max-width: 1600px; }
 
 h2 { margin: 0 0 14px; font-size: 0.78rem; text-transform: uppercase;
      letter-spacing: 0.08em; color: var(--muted); font-weight: 700;
