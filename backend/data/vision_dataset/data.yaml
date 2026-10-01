@@ -1,0 +1,10 @@
+# Aircraft surface defect detection — Innovation Hangar v2 (CC BY 4.0)
+# Absolute path so training works regardless of the working directory; an
+# earlier run wrote its output to the wrong place because of a relative one.
+path: C:/Users/kamle/Downloads/prism/backend/data/vision_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 5
+names: ['crack', 'dent', 'missing-head', 'paint-off', 'scratch']

@@ -24,10 +24,19 @@ yarn-error.log*
 *.pt
 *.pth
 *.onnx
-vision/weights/
-nlp/models/
 backend/chroma_db/
 backend/logs/*.mp4
+# Vision dataset images/labels — 183 MB, re-fetchable with no credentials via
+# scripts/fetch_dataset.py. data.yaml and README.md ARE tracked.
+backend/data/vision_dataset/train/
+backend/data/vision_dataset/valid/
+backend/data/vision_dataset/test/
+backend/data/vision_dataset/*.txt
+# ultralytics training output (weights already covered by *.pt above)
+runs/
+backend/runs/
+# ultralytics writes label .cache files beside the dataset
+*.cache
 
 # --- Backend runtime artifacts ---
 backend/venv/

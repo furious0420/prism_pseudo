@@ -18,7 +18,8 @@ pip install -r ..\requirements.txt
 | `frontend/` | D1-01 | Vite + React. `src/App.jsx` was a health-check page until Day 9 replaced it. |
 | `backend/.env.example` | D1-02 | Every config var. Copy to `backend/.env`; never commit the real one. |
 | `infra/iam-policy-prism-dev.json` | D1-02 | Least-privilege IAM policy, scoped to the PRISM bucket only. |
-| `backend/scripts/s3_check.py` | D1-02 | Verifies region, read, write, the four prefixes and the SOP tags. `--bootstrap` creates the prefixes. Exits non-zero on anything blocking. |
+| `backend/scripts/s3_check.py` | D1-02 | Verifies region, read, write, the five prefixes and the SOP tags. `--bootstrap` creates the prefixes. Exits non-zero on anything blocking. |
+| `backend/scripts/s3_sync.py` | D1-02/D5 | Uploads the shared data — corpus, cases, fine-tuned weights, and the validation split as one zip. `--dry-run` shows the plan without calling AWS; unchanged files are skipped by MD5-vs-ETag. Nothing on the diagnosis path reads from S3. |
 | `backend/scripts/dataset_check.py` | D1-03 | Scans S3 and a local folder for a labeled dataset; identifies YOLO / COCO / Pascal VOC / Ground Truth manifest and prints the Day 5 consequence. |
 | `backend/scripts/pdf_probe.py` | D1-04 | Are the manuals real text or scans? A scan makes `pdfplumber` return empty strings and stalls Day 3 silently. |
 | `requirements.txt` (root) | D1-04 | Every dependency, mapped to its day, plus the non-pip tools and the install-order trap (CUDA torch first). |
@@ -56,20 +57,25 @@ pip install -r ..\requirements.txt
 | File | Task | What it does |
 |---|---|---|
 | `backend/models/risk.py` | D7-01 | `score_risk(defect_type, confidence)`. Pure input → output. Confidence can only lower severity, never raise it. `worst_risk()` governs multi-defect images — averaging would let three scratches hide a crack. **Adjust `SEVERITY` to your real YOLO classes.** |
+| `backend/models/risk.py` | D7-01 | `score_telemetry(telemetry, defect_risk)` — the 0-100 score. Scores temperature / pressure / runtime / vibration against `PARAMETERS`, combines with any detected defect, returns score + per-factor breakdown + band + advisory. Bands are 0-33 Low / 34-66 Medium / 67-100 High. **Thresholds are illustrative demo values, not certified limits** — that caveat is surfaced in the UI too. Missing or unparseable readings are skipped, never assumed nominal. Added because risk previously scored only detections, so the risk panel was empty on every text-only diagnosis. |
 
 ## Day 8 — Case memory
 
 | File | Task | What it does |
 |---|---|---|
-| `backend/models/case_memory.py` | D8-01 | `find_similar_cases(query, k)` over `data/history_cases.json`, embedded with the same MiniLM as Day 3. **Nothing in the tracker creates that file** — returns `[]` with a reason until someone authors ~15–20 cases. |
+| `backend/models/case_memory.py` | D8-01 | `find_similar_cases(query, k)` over `data/history_cases.json`, embedded with the same MiniLM as Day 3. The file now exists (18 hand-authored cases); it degrades to `[]` with a reason if it ever goes missing. |
+| `backend/models/case_memory.py` | post-D9 | `log_case(...)` appends a resolved case and `list_cases()` returns them all. The write goes via temp-file + `os.replace()` so a crash cannot truncate the file, and it **resets the module embedding cache** — without that, `_load()`'s load-once guard would serve a stale list for the rest of the process's life and a newly logged case would be invisible to similarity search until restart. |
 
 ## Day 9 — Backend and frontend
 
 | File | Task | What it does |
 |---|---|---|
 | `backend/models/pipeline.py` | D9-01 | `run_diagnosis(image, query)` — detection → diagnosis → risk → case memory, in the tracker's order. **Every stage is failure-isolated**: a dead GPU or a missing case file degrades one section and leaves the rest, so the response is never a 500. |
-| `backend/app.py` | D9-01 | `POST /diagnose` (multipart: `image`, `query`), upload size and type validation, JSON errors for every status. |
-| `frontend/src/App.jsx` | D9-02 | Upload form; renders risk, diagnosis with citations, the manual passages used, detections, similar cases, and per-stage timings. Shows a live counter while generating, and warns up front when a stage is not ready. |
+| `backend/app.py` | D9-01 | `POST /diagnose` (multipart: `image`, `query`, optional telemetry fields), upload size and type validation, JSON errors for every status. |
+| `backend/app.py` | post-D9 | `POST /diagnose/stream` — same pipeline over SSE, one event per stage as it completes. The upload is saved *before* the generator starts, because the request context is gone by the time Flask pulls from it. |
+| `backend/app.py` | post-D9 | `GET /corpus/documents`, `GET /corpus/search` (retrieval only, no LLM), `GET /memory/cases`, `POST /memory/log-case`. |
+| `frontend/src/ErrorBoundary.jsx` | post-D9 | Contains render-time exceptions. Without it any thrown error unmounts the tree to a blank white page — unrecoverable mid-demo without a reload. |
+| `frontend/src/App.jsx` | D9-02 | Four tabs (Diagnose / Manuals / Case History / System Status) via local state — no router dependency. Two-column dashboard: input left, results right. Renders the 0-100 risk panel, diagnosis with citations, **the retrieved passage text itself** (expandable — this is what proves grounding), detections, similar cases, per-stage timings, and a "Mark as resolved" write-back. Consumes the SSE stream so stages fill in as they complete, falling back to plain `/diagnose` if streaming fails. Header pill polls `/health/pipeline` every 12s and shows ready / degraded / unreachable. |
 | `backend/scripts/smoke_diagnose.py` | D9/D10/D11 | Exercises `/diagnose` as the UI does and writes `logs/day9_api.md` — stage readiness, per-request timings, per-stage breakdown and the response contract. `--edge-cases` runs the D10-02 fragility pass and fails if anything returns a 5xx. |
 
 ---
@@ -82,6 +88,8 @@ pip install -r ..\requirements.txt
 | `day3_retrieval.md` | `scripts/verify_retrieval.py` |
 | `day4_examples.md` | `scripts/run_examples.py` |
 | `day9_api.md` | `scripts/smoke_diagnose.py` |
+| `day10_integration.md` | hand-written from the Playwright browser pass |
+| `day11_metrics.md`, `day11_reliability_raw.json` | reliability pass + consolidated metrics |
 
 These are results, not noise — the timings feed the pitch deck's evidence slide and
 the reports let a teammate see the system works without re-running anything. They are
@@ -95,4 +103,16 @@ That follows the data: text in, manual passages retrieved, answer generated, sta
 ## Not in git, by design
 
 `.env` (holds AWS keys), `venv/`, `node_modules/`, `chroma_db/` (rebuild with `ingest_corpus.py`),
-`data/corpus_raw/*.pdf` (FAA manuals — S3 `corpus/` prefix), `*.gguf` and `*.pt` weights.
+`*.gguf` and `*.pt` weights.
+
+The FAA corpus PDFs (`backend/data/corpus_raw/`) and `backend/logs/*.md` **are**
+committed — the corpus is small enough and the logs are evidence, not noise.
+
+## Also in the repo
+
+| Path | What |
+|---|---|
+| `docs/aws_setup.md` | Creating and using the S3 bucket. Dev-time storage only — never on the diagnosis path. |
+| `docs/handoff_summary.md` | State of the build for whoever picks it up next. |
+| `docs/prism_demo_v4.html` | The original hackathon demo mockup — scripted, no backend. Reference for the intended pitch narrative. |
+| `sample_images/` | Two held-out validation images (CC BY 4.0) that the fine-tuned detector fires on, with a README showing the detections and why `worst_risk()` lets a 0.52 crack outrank a 0.98 dent. |

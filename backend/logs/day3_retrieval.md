@@ -1,141 +1,141 @@
-# Day 3 — retrieval spot-check (2026-09-22 13:05)
+# Day 3 — retrieval spot-check (2026-09-30 20:11)
 
-Index: 5364 chunks. Top-3 per query.
+Index: 4779 chunks. Top-3 per query.
 
 ## corrosion on landing gear strut
 
-_110 ms_
+_98 ms_
 
-1. **AC_43.13-1B.pdf p.286** (score 0.599)  
-   9/8/98 AC 43.13-1B SECTION 5. VISUAL CORROSION INSPECTION GUIDE FOR AIRCRAFT 6-63. GENERAL. This guide provides a b. Remove any foreign material from general inspection checklist for those parts or bilge and inspect for corrosion. surfaces that can be visually inspected without disassembly of the ai...
+1. **AC_43.13-1B.pdf p.285** (score 0.674)  
+   9/8/98 d. Most parts of landing gear wheels are made from magnesium or aluminum alloys which corrode rapidly unless carefully protected. When the aircraft operates near salt water and off coral beaches, the corrosion can be very rapid. Inspect wheels to determine the paint condition. e. Refinish por...
 
-2. **AC_43.13-1B.pdf p.423** (score 0.590)  
-   9/27/01 AC 43.13-1B CHG 1 fully retracted, remove the hose, insert the landing-gear doors should be checked. Im- valve core, lower the gear, and service the strut proper adjustment of sequence valves may with nitrogen to get the proper strut extension. cause doors to rub against gear structures or w...
+2. **AC_43.13-1B.pdf p.423** (score 0.577)  
+   9/27/01 fully retracted, remove the hose, insert the valve core, lower the gear, and service the strut with nitrogen to get the proper strut extension. g. The entire structure of the landing gear should be closely examined for cracks, nicks, cuts, corrosion damage, or any other condition that can ca...
 
-3. **AC_43.13-1B.pdf p.285** (score 0.581)  
-   AC 43.13-1B 9/8/98 paint. Apply with a cloth or a soft brush d. Most parts of landing gear wheels are soaked in the mixture. made from magnesium or aluminum alloys which corrode rapidly unless carefully pro­ (3) Wipe off excess mixture. When ap­ tected. When the aircraft operates near salt plying th...
+3. **AC_65-15A.pdf p.359** (score 0.568)  
+   Shock struts should be inspected regularly for leakage of fluid and for proper extension. Exposed portions of the strut pistons should be wiped clean daily and inspected closely for scoring or corrosion. MAIN LANDING GEAR ALIGNMENT, SUPPORT, RETRACTION The main landing gear consists of several compo...
 
 ## hairline crack in wing spar
 
-_14 ms_
+_12 ms_
 
-1. **AC_43.13-1B.pdf p.46** (score 0.580)  
-   spar butts is common on aircraft based in arid have been the front spar at both ends of the areas. reinforcement plate for the lift strut and the front spar rib attach points, both inboard and outboard of the spar reinforcement plate; and the rear spar lift strut and rib attach points. An inspection...
+1. **AC_43.13-1B.pdf p.49** (score 0.598)  
+   WITH LAMINATED-TYPE SPARS. Solid spars may be replaced with laminated spars or vice versa, provided the material is of the same high quality. External reinforcements (plywood or solid) must always be replaced as on the original member. 1-44. SPAR LONGITUDINAL CRACKS AND LOCAL DAMAGE. Cracked spars (...
 
-2. **AC_43.13-1B.pdf p.245** (score 0.534)  
-   cracks in sharp radii; such as threaded parts, should be liberal and in a manner to cause splines, gear teeth roots, and abrupt changes in maximum particle buildup. Immersion of Page 5-26 Par 5-50...
+2. **AC_43.13-1B.pdf p.46** (score 0.577)  
+   structure. (k) Any wooden member that has been overstressed is subject to compression failure (e.g., ground loop). Compression cracking and failure of the wood spars in certain aircraft are a continuing problem. Compression failures are defined as failure of wood fibers on a plane perpendicular to t...
 
-3. **AC_43.13-1B.pdf p.49** (score 0.518)  
-   are shown in figure 1-4 through figure 1-9.) AND LOCAL DAMAGE. Cracked spars Reinforcement plates must be used as indi- (except box spars) may be repaired by bonding cated on all scarf repairs to spars and the plates of spruce or plywood of sufficient slopes of scarves shown are minimum slopes. thic...
+3. **AC_43.13-1B.pdf p.49** (score 0.545)  
+   a. Longitudinal Cracking of Wood Wing Spars of Aircraft Operating in Arid Regions. Aircraft having wood spars and operating in arid regions may develop longitudinal spar cracks in the vicinity of the plywood reinforcement plates. These cracks result from the tendency of the spar to shrink when dryin...
 
 ## pitting corrosion depth limits
 
-_13 ms_
+_12 ms_
 
-1. **AC_20-106.pdf p.13** (score 0.583)  
-   dation of copper, aluminum, and other non­ linseed oil, paralketone, or other corrosion in­ ferrous materials is usually known as corrosion. hibitors. The holes drilled for this operation are usually plugged with sheet metal screws Rusting. Rust usually begins as a reddish (see CAUTION above). disco...
+1. **AC_43.13-1B.pdf p.276** (score 0.623)  
+   Par 6-11 AC 43.13-1B CHG 1 ES OF CORROSION 6-13. PITTING CORROSION. Pitting corrosion is one of the most destructive and intense forms of corrosion. It can occur in any metal but is most common on metals that form protective oxide films, such as aluminum and magnesium alloys. It is first noticeable ...
 
-2. **AC_43.13-1B.pdf p.277** (score 0.582)  
-   the solution, thereby creating a difference in in deep pits in a short time and a greater rate of oxygen concentration between two points. corrosion. Typical locations of oxygen concentration FIGURE 6-6. Concentration cell corrosion. Page 6-6 Par 6-14...
+2. **AC_43.13-1B.pdf p.291** (score 0.541)  
+   a. Remove rough edges and all corrosion from the damaged area. All dish-outs should be elliptically shaped with the major axis running spanwise on wings and horizontal stabilizers, longitudinally on fuselages, and vertically on vertical stabilizers. (Select the proper abrasive for fairing operations...
 
-3. **AC_43.13-1B.pdf p.14** (score 0.572)  
-   SECTION 3. CORROSION PROTECTION MEASURES FOR BASIC MATERIALS 6-29. General........................................................................................................................................................6-11 6-30. Anodizing and Related Processes ..................................
+3. **AC_43.13-1B.pdf p.298** (score 0.524)  
+   9/8/98 f. Inspect the area for remaining corrosion. Repeat procedure if any corrosion remains. NOTE: If corrosion remains after the second attempt, use a stronger method, e.g., chemical to mechanical. g. Using a blend ratio of 20:1 (length to depth) blend and finish the corrosion rework area with pr...
 
 ## how to inspect for intergranular corrosion
 
-_23 ms_
+_11 ms_
 
-1. **AC_43.13-1B.pdf p.287** (score 0.627)  
-   peeling, lifting of surface, or other damage. a. Inspect circuit-breakers, contact points, and switches for evidence of moisture b. Inspect aircraft structure for top coat and corrosive attack. finish damage from pitting or intergranular corrosion. b. Treatment of corrosion in electrical and electro...
+1. **AC_43.13-1B.pdf p.286** (score 0.623)  
+   to protective finishes and corrosion. c. Inspect lap joints for bulging of skin surface, which may indicate the presence of corrosion between the faying surfaces. Skin cracks and/or dished or missing fastener heads may also indicate severe corrosion in bonded joints. d. Inspect area around spot weld...
 
-2. **AC_43.13-1B.pdf p.286** (score 0.597)  
-   around rivet heads, and in skin crevices, for corrosion in areas of engine exhaust trail. a. Inspect external skin surfaces for damage to protective finishes and corrosion. 6-65. BATTERY COMPARTMENTS AND BATTERY VENT OPENINGS. b. Inspect around fasteners for damage to protective finishes and corrosi...
+2. **AC_43.13-1B.pdf p.231** (score 0.611)  
+   9/8/98  experience on corrosion detection on aircraft structure and engine materials. (Reference: AC 43-4A, Corrosion Control for Aircraft, for additional information on corrosion. a. Preliminary Inspection. Perform a preliminary inspection of the overall general area for cleanliness, presence of fo...
 
-3. **AC_43.13-1B.pdf p.305** (score 0.585)  
-   and establish its heat-treated value. polish with 400-grit paper. c. Clean the area and strip paint if re­ i. Determine depth of faired depression quired. to ensure that rework limits have not been ex­ ceeded. NOTE: Use of acid-based strippers, chemical removers, or chemical con- j. Clean reworked a...
+3. **AC_43.13-1B.pdf p.287** (score 0.598)  
+   points, and switches for evidence of moisture and corrosive attack. b. Treatment of corrosion in electrical and electronic components should be done by or supervised by qualified personnel familiar with the function of the unit involved. 6-73. FLEXIBLE HOSE ASSEMBLIES. a. Inspect hose assemblies for...
 
 ## dent in fuselage skin allowable damage
 
-_34 ms_
+_12 ms_
 
-1. **AC_20-106.pdf p.15** (score 0.544)  
-   Cutting results in cuts or grooves in the worn ScraJch. A slight tear or break in material part. The cause of cutting is similar to chafing surface from light momentary contact with except that a sharp edge is in contact, instead foreign material or object. of a smooth surface. Dent is an indentatio...
+1. **AC_43.13-1B.pdf p.59** (score 0.579)  
+   (3) If the back of a damaged plywood skin is accessible (such as a fuselage skin), it should be repaired with a scarf patch, following the details shown in figure 1-15. Whenever possible, the edges of the patch should be supported as shown in section C-C of figure 1-15. When the damage follows or ex...
 
-2. **AC_43.13-1B.pdf p.126** (score 0.542)  
-   rial. If the damage is sustained in an area with an already-potted core, the replacement core should also be potted. In other cases, if the honeycomb or foam core is damaged, it may be potted rather than plugged if the damaged area is small (1 inch or less). Remove the face sheet with a power router...
+2. **AC_43.13-1B.pdf p.68** (score 0.579)  
+   (3) If the back of a damaged plywood skin is accessible (such as a fuselage skin), it should be repaired with a scarf patch, following the details shown in figure 1-15. Whenever possible, the edges of the patch should be supported as shown in section C-C of figure 1-15. When the damage follows or ex...
 
-3. **AC_65-15A.pdf p.219** (score 0.540)  
-   support assembly, metal-cutting mill bit, and tem· specifications as that of the original finish. plate should be used in the removal of the damaged GLASS FABRIC CLOTH OVERLAY REPAIRS area. (Information about the uses and maintenance Presently, two acceptable methods of repair are of the router was ...
+3. **AC_65-15A.pdf p.220** (score 0.553)  
+   honeycomb skin and core materials of aircraft are: (1) Single-face repair with damage extending through the core material and to the bond line of the opposite facing; and. (2) transition area repair. When the damage to the honeycomb structure is inspected and evaluated as damage to only one skin and...
 
 ## stress corrosion cracking in aluminium alloy
 
-_29 ms_
+_13 ms_
 
-1. **AC_43.13-1B.pdf p.279** (score 0.711)  
-   6-20. STRESS CORROSION CRACKING. been identified which cause stress corrosion This form of corrosion involves a constant or cracking of certain alloys. cyclic stress, acting in conjunction Page 6-8 Par 6-18...
+1. **AC_43.13-1B.pdf p.279** (score 0.710)  
+   design stress, because stress corrosion is difficult to recognize before it has overcome the design safety factor. The level of stress varies from point to point within the metal. Stresses near the yield strength are generally necessary to promote stress corrosion cracking. (See figure 6-12.) Howeve...
 
-2. **AC_43.13-1B.pdf p.280** (score 0.646)  
-   signed to the life-limited part. (1) Salt solutions and sea water cause stress corrosion cracking of high-strength, a. Fatigue corrosion failure occurs in heat-treated steel and aluminum alloys. two stages. During the first stage the combined action of corrosion and cyclic stress damages (2) Methyl ...
+2. **AC_43.13-1B.pdf p.280** (score 0.693)  
+   (1) Salt solutions and sea water cause stress corrosion cracking of high-strength, heat-treated steel and aluminum alloys. (2) Methyl alcohol-hydrochloric acid solutions will cause stress corrosion cracking of some titanium alloys. (3) Magnesium alloys may stresscorrode in moist air. (4) Stress Corr...
 
-3. **AC_43.13-1B.pdf p.280** (score 0.626)  
-   (4) Stress Corrosion may be reduced by gation of the crack (often from a corrosion pit • applying protective coatings, or pits). It is controlled primarily by stress concentration effects and the physical proper­ • stress relief heat treatments, ties of the metal. Fracture of a metal part due • usin...
+3. **AC_43.13-1B.pdf p.295** (score 0.630)  
+   9/8/98 SECTION 8. ALUMINUM 6-132. GENERAL. Aluminum and aluminum alloys are the most widely used material for aircraft construction. Aluminum appears high in the electro-chemical series of elements and corrodes very easily. However, the formation of a tightly-adhering oxide film offers increased res...
 
 ## non-destructive inspection methods for cracks
 
-_13 ms_
+_12 ms_
 
-1. **AC_43.13-1B.pdf p.232** (score 0.713)  
-   rectly into the eyes. Keep the eyes above the e. Noise. Noise levels while conducting a reflected light beam during the inspection. Determine the extent of any cracks found by visual inspection are important. Excessive noise reduces concentration, creates tension, directing the light beam at right a...
+1. **AC_43.13-1B.pdf p.232** (score 0.652)  
+   9/8/98 required. An inspector normally should have available suitable measuring devices, a flashlight, and a mirror. (1) Surface cracks. When searching for surface cracks with a flashlight, direct the light beam at a 5 to 45 degree angle to the inspection surface, towards the face. (See figure 5-2.)...
 
-2. **AC_43.13-1B.pdf p.235** (score 0.580)  
-   AC 43.13-1B 9/8/98 FIGURE 5-5. Typical instrument displays. Service-induced cracks in aircraft structures are generally caused by fatigue or stress corro- sion. Both types of cracks initiate at the sur- face of a part. If this surface is accessible, a high-frequency eddy current inspection can be pe...
+2. **AC_43.13-1B.pdf p.235** (score 0.643)  
+   broad areas for randomly-oriented cracks. However, in some instances it is more economical to scan relatively large areas with eddy current rather than strip surface coatings, inspect by other methods, and then refinish. 5-28. SURFACE INSPECTION. Eddy current inspection techniques are used to inspec...
 
-3. **AC_43.13-1B.pdf p.248** (score 0.557)  
-   in-service surface cracks. that parts are thoroughly cleaned and dried be- fore doing penetrant inspection. All surfaces b. The major limitations of the penetrant to be inspected should be free of contaminants, inspection is that it can detect only those dis- paint, and other coatings that could pre...
+3. **AC_43.13-1B.pdf p.232** (score 0.629)  
+   magnifying glass to confirm the existence of a suspected crack. If this is not adequate, use other NDI techniques, such as penetrant, magnetic particle, or eddy current to verify cracks. (2) Other surface discontinuities. Inspect for other surface discontinuities, such as: discoloration from overhea...
 
 ## surface corrosion removal procedure
 
-_13 ms_
+_11 ms_
 
-1. **AC_43.13-1B.pdf p.284** (score 0.681)  
-   (2) corrosion identification techniques; absorbent material. (3) corrosion detection, cleaning, and l. Daily draining of fuel cavities to re­ treating; and move accumulated water and other foreign matter. (4) lubrication and preservation of air­ craft structure and components. m. Daily wipe-down of ...
+1. **AC_43.13-1B.pdf p.305** (score 0.748)  
+   AC 43.13-1B 6-167. EXAMPLE OF REMOVING CORROSION FROM FERROUS METALS. If possible, corroded steel parts should be removed from the aircraft. When impractical to remove the part, follow the procedure below. a. Prepare the area for rework. b. Positively identify the metal as steel and establish its he...
 
-2. **AC_43.13-1B.pdf p.301** (score 0.665)  
-   9/8/98 AC 43.13-1B (b) Do not use this method for parts f. Remove moderate to heavy corrosion by containing copper and steel-based inserts (un­ one of the following means. less the inserts are masked off) and where it might come into contact with adhesive bonded (1) Powered Corrosion Removal. skins ...
+2. **AC_43.13-1B.pdf p.300** (score 0.731)  
+   remove stains or to remove corrosion on thin metal surfaces where minimum metal removal is allowed. (2) Chemical Corrosion Removal. (a) Chemical corrosion removal on magnesium alloys is usually done with a chromic acid pickle solution. Chemical corrosion removal methods are not considered adequate f...
 
-3. **AC_43.13-1B.pdf p.305** (score 0.658)  
-   and establish its heat-treated value. polish with 400-grit paper. c. Clean the area and strip paint if re­ i. Determine depth of faired depression quired. to ensure that rework limits have not been ex­ ceeded. NOTE: Use of acid-based strippers, chemical removers, or chemical con- j. Clean reworked a...
+3. **AC_43.13-1B.pdf p.301** (score 0.697)  
+   mechanisms, cracks and plated steel to keep the solution from attacking them. (c) Apply chromic acid solution carefully to the corroded area with an acid-resistant brush. (d) Allow the solution to remain on the surface for approximately 15 minutes. Agitation may be required. (e) Thoroughly rinse the...
 
 ## fastener hole elongation repair
 
-_13 ms_
+_10 ms_
 
-1. **AC_65-15A.pdf p.188** (score 0.555)  
-   punch slightly smaller than the diameter of the the complete repair of the joint may require re shank. On thin metal or unsupported structures, placement of the rivets with the next larger size. support the sheet with a bucking bar while driving The general practice of replacing a rivet with the out...
+1. **AC_43.13-1B.pdf p.295** (score 0.548)  
+   so that all fasteners, as well as all edges of the repair plate, will be sealed against moisture. h. Remove all excess sealant after fasteners are installed. Apply a fillet sealant bead around the edge of the repair. After the sealant has cured apply the protective paint finish to the reworked area....
 
-2. **AC_65-15A.pdf p.206** (score 0.541)  
-   repair. Sometimes bolts are used to install a longe of the structure is not impaired. The spar is so ron repair; but, because of the greater accuracy constructed that two general classes of repairs, web required, they are not as suitable as rivets. Also, repairs and cap strip repairs, are usually ne...
+2. **AC_43.13-1B.pdf p.167** (score 0.547)  
+   repairs are shown in figure 4-15. e. Repair of Damaged Skin. In cases where metal skin is damaged extensively, repair by replacing an entire sheet panel from one structural member to the next. The repair seams are to lie along stiffening members, bulkheads, etc.; and each seam must be made exactly t...
 
-3. **AC_43.13-1B.pdf p.166** (score 0.534)  
-   9/8/98 AC 43.13-1B FIGURE 4-10. Olympic-Lok rivet. 4-58. REPAIR METHODS AND PRE­ a. Splicing of Tubes. Round or stream­ CAUTIONS FOR ALUMINUM STRUC­ line aluminum alloy tubular members may be TURE. Carefully examine all adjacent rivets repaired by splicing. (See figure 4-12.) outside of the repair a...
+3. **AC_43.13-1B.pdf p.181** (score 0.544)  
+   9/8/98 (3) Replace torn, kinked, or cracked fittings. (4) Elongated or worn bolt holes in fittings, which were designed without bushings, are not to be reamed oversize. Replace such fittings, unless the method of repair is approved by the FAA. Do not fill holes with welding rod. Acceptable methods o...
 
 ## exfoliation corrosion treatment
 
-_13 ms_
+_11 ms_
 
-1. **AC_43.13-1B.pdf p.14** (score 0.699)  
-   Figure 6-10. Exfoliation Corrosion.............................................................................................................6-8 6-19. Galvanic Corrosion....................................................................................................................................
+1. **AC_43.13-1B.pdf p.278** (score 0.647)  
+   defined boundary which chemically differs from the metal within the grain. The grain boundary and the grain center can react with each other as anode and cathode when in contact with an electrolyte. (See figure 6-9.) Rapid selective corrosion of the grain boundaries can occur. High-strength aluminum...
 
-2. **AC_43.13-1B.pdf p.298** (score 0.592)  
-   aluminum alloys, do not allow the blast stream nesium or high-strength steels to dwell on the same spot longer than (180,000 psi). Do not permit solutions 15 seconds. Longer dwell times will cause ex­ or materials to contact paint thinner, cessive metal removal. Intergranular exfolia­ acetone or oth...
+2. **AC_43.13-1B.pdf p.300** (score 0.599)  
+   9/8/98 c. Strip paint if required. d. Determine the extent of corrosion damage. e. Remove light to moderate corrosion by one of the following means. (1) Non-Powered Corrosion Removal. (a) Non-powered removal can be accomplished using abrasive mats, cloth, and paper with aluminum oxide grit (do not u...
 
-3. **AC_43.13-1B.pdf p.274** (score 0.570)  
-   gases can dissolve on wet surfaces, increasing by many alkaline solutions unless the solutions the electrical conductivity of the electrolyte, contain a corrosion inhibitor. Substances par­ thereby increasing the rate of corrosion. ticularly corrosive to aluminum are washing soda, potash (wood ashes...
+3. **AC_43.13-1B.pdf p.296** (score 0.591)  
+   9/8/98 b. Clean the area to be reworked. Strip paint if required. c. Determine extent of corrosion damage. d. Remove light to moderate corrosion with one of the following. (1) Non-Powered Corrosion Removal. (a) The removal of corrosion products by hand can be accomplished by use of aluminum grit and...
 
 
 ## Summary
 
-- Average retrieval latency: **27 ms** (feeds the D11-02 metrics)
+- Average retrieval latency: **20 ms** (feeds the D11-02 metrics)
 - Every query returned at least one confident hit.
 
 **Judge these by reading them, not by the scores.** A high score on an irrelevant passage is exactly the failure mode that produces a confident wrong diagnosis on Day 4.
