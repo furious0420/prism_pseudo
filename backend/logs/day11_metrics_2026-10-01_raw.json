@@ -1,0 +1,137 @@
+{
+ "retrieval_warm_ms": [
+  18.589799998153467,
+  20.642499999667052,
+  17.824099995777942,
+  17.86759999959031,
+  15.158499998506159,
+  15.65639999898849,
+  17.153499997220933,
+  19.39220000349451,
+  17.975100003241096,
+  16.770800000813324
+ ],
+ "cold_ms": 16331.752400001278,
+ "requests": [
+  {
+   "query": "corrosion on landing gear strut",
+   "in_scope": true,
+   "status": 200,
+   "ms": 48993,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": false,
+   "citations": 1
+  },
+  {
+   "query": "hairline crack in wing spar",
+   "in_scope": true,
+   "status": 200,
+   "ms": 9247,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": false,
+   "citations": 1
+  },
+  {
+   "query": "pitting corrosion depth limits",
+   "in_scope": true,
+   "status": 200,
+   "ms": 29163,
+   "grounded": true,
+   "cited_ok": false,
+   "refused": false,
+   "citations": 0
+  },
+  {
+   "query": "how to inspect for intergranular corrosion",
+   "in_scope": true,
+   "status": 200,
+   "ms": 2380,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": true,
+   "citations": 0
+  },
+  {
+   "query": "dent in fuselage skin allowable damage",
+   "in_scope": true,
+   "status": 200,
+   "ms": 2752,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": true,
+   "citations": 0
+  },
+  {
+   "query": "stress corrosion cracking in aluminium alloy",
+   "in_scope": true,
+   "status": 200,
+   "ms": 12184,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": false,
+   "citations": 1
+  },
+  {
+   "query": "non-destructive inspection methods for cracks",
+   "in_scope": true,
+   "status": 200,
+   "ms": 14674,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": false,
+   "citations": 1
+  },
+  {
+   "query": "surface corrosion removal procedure",
+   "in_scope": true,
+   "status": 200,
+   "ms": 46700,
+   "grounded": true,
+   "cited_ok": false,
+   "refused": false,
+   "citations": 0
+  },
+  {
+   "query": "fastener hole elongation repair",
+   "in_scope": true,
+   "status": 200,
+   "ms": 7690,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": false,
+   "citations": 1
+  },
+  {
+   "query": "exfoliation corrosion treatment",
+   "in_scope": true,
+   "status": 200,
+   "ms": 24313,
+   "grounded": true,
+   "cited_ok": false,
+   "refused": false,
+   "citations": 0
+  },
+  {
+   "query": "how do I fix my coffee machine",
+   "in_scope": false,
+   "status": 200,
+   "ms": 1182,
+   "grounded": false,
+   "cited_ok": true,
+   "refused": true,
+   "citations": 0
+  },
+  {
+   "query": "what is the torque spec for the Boeing 737-800 CFM56 fan blade retaining bolt",
+   "in_scope": false,
+   "status": 200,
+   "ms": 3139,
+   "grounded": true,
+   "cited_ok": true,
+   "refused": true,
+   "citations": 0
+  }
+ ]
+}
