@@ -54,14 +54,15 @@ def _resolve_weights() -> tuple[str, bool]:
 
 def _get_model():
     global _model, _using_pretrained
-    if _model is None:
+    path, pretrained = _resolve_weights()
+    if _model is None or (_using_pretrained and not pretrained):
         try:
             from ultralytics import YOLO
         except ImportError as e:
             raise DetectorUnavailable(
                 "ultralytics is not installed.  fix -> pip install ultralytics"
             ) from e
-        path, _using_pretrained = _resolve_weights()
+        _using_pretrained = pretrained
         _model = YOLO(path)
     return _model
 
@@ -74,8 +75,13 @@ def detect(image_path: str, conf: float = CONF_THRESHOLD) -> list[Detection]:
     for r in results:
         names = r.names
         for b in r.boxes:
+            label = names[int(b.cls)]
+            # If using generic pretrained fallback, suppress non-aviation COCO classes
+            # like bus, person, car, etc. that do not belong in aircraft inspection.
+            if _using_pretrained and label not in ("crack", "dent", "missing-head", "paint-off", "scratch"):
+                continue
             out.append(Detection(
-                label=names[int(b.cls)],
+                label=label,
                 confidence=round(float(b.conf), 4),
                 box=[round(float(v), 1) for v in b.xyxy[0].tolist()],
                 pretrained=_using_pretrained,

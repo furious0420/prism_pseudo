@@ -14,6 +14,7 @@ reference or swap it before the jury asks.
 """
 from __future__ import annotations
 
+import re
 from typing import TypedDict
 
 # The first five keys are the actual trained YOLOv8 class list (see
@@ -32,7 +33,14 @@ SEVERITY = {
     "scratch": "Low",
     # --- additional vocabulary for free-text symptoms ---
     "stress corrosion cracking": "Critical",
+    "tear": "Critical",
+    "torn": "Critical",
     "corrosion": "High",
+    "rust": "High",
+    "rusted": "High",
+    "rusting": "High",
+    "delamination": "High",
+    "buckling": "High",
     "exfoliation": "High",
     "pitting": "High",
     "deformation": "Medium",
@@ -91,6 +99,52 @@ def score_risk(defect_type: str, confidence: float) -> Risk:
         confidence=round(float(confidence), 4),
         rationale=rationale,
         needs_human_review=needs_review,
+    )
+
+
+# Longest first, so "stress corrosion cracking" wins over "corrosion" and
+# "crack" rather than whichever happens to be scanned first.
+_SYMPTOM_TERMS = sorted(SEVERITY, key=len, reverse=True)
+
+
+def match_symptom(text: str) -> tuple[str, str] | None:
+    """The most severe known defect term named in free text, or None.
+
+    SEVERITY has always carried free-text vocabulary — corrosion, pitting,
+    exfoliation — that NOTHING COULD REACH: score_risk is only ever called with
+    detector class names, so those entries were dead. This makes them live, so
+    a defect the technician describes reaches the risk score even when the
+    detector sees nothing (which, until D6 fine-tuning, is every real photo:
+    pretrained YOLOv8n knows COCO objects, not aircraft defects).
+
+    This is a word match on typed text, NOT a measurement. Callers must label
+    the result as reported, never as detected.
+    """
+    t = (text or "").lower()
+    best: tuple[str, str] | None = None
+    for term in _SYMPTOM_TERMS:
+        if re.search(rf"\b{re.escape(term)}\b", t):
+            sev = SEVERITY[term]
+            if best is None or LEVELS.index(sev) > LEVELS.index(best[1]):
+                best = (term, sev)
+    return best
+
+
+def score_reported(term: str) -> Risk:
+    """Risk for a defect the technician DESCRIBED rather than one detected.
+
+    confidence is 0.0 because nothing measured it — the number would be a
+    fabrication. A described defect always needs human review: there is no
+    image evidence either way.
+    """
+    severity = SEVERITY.get(term.lower(), UNKNOWN_SEVERITY)
+    return Risk(
+        level=severity,
+        severity=severity,
+        confidence=0.0,
+        rationale=(f"'{term}' reported in the symptom description, classified {severity}; "
+                   f"not confirmed by image detection"),
+        needs_human_review=True,
     )
 
 
@@ -187,6 +241,51 @@ class Factor(TypedDict):
     note: str
 
 
+def _apply_floors(band: str, factors: list, defect_risk: "Risk | None") -> tuple[str, str | None]:
+    """Raise the band when a single input is worse than the total suggests.
+
+    The additive score DILUTES. One parameter past its operating limit with
+    three nominal readings totals 40 and lands in Medium — the same averaging
+    error worst_risk() exists to prevent, and far more dangerous here because
+    the advisory that follows says "inspect within 30 days".
+
+    Rule: a band may never sit below the worst single input.
+      - one reading past its limit      -> at least High
+      - two or more past their limits   -> Critical
+      - a High/Critical defect          -> at least that level
+
+    The score itself is NOT inflated. Raising the number would misrepresent the
+    arithmetic; the band is a judgement about the worst finding, and that is
+    where the judgement belongs. The returned note says what was raised and why,
+    so the panel can show its reasoning rather than appearing to fudge.
+    """
+    crit = [f for f in factors
+            if f["parameter"] != "defect" and f["band"] == "critical"]
+
+    floors: list[str] = []
+    if crit:
+        floors.append("High" if len(crit) == 1 else "Critical")
+    if defect_risk and defect_risk["level"] in ("High", "Critical"):
+        floors.append(defect_risk["level"])
+
+    if not floors:
+        return band, None
+
+    worst = max(floors, key=LEVELS.index)
+    if LEVELS.index(worst) <= LEVELS.index(band):
+        return band, None
+
+    reasons = []
+    if crit:
+        reasons.append(", ".join(f"{f['label'].lower()} {f['value']}{f['unit']} past its limit"
+                                 for f in crit))
+    if defect_risk and defect_risk["level"] in ("High", "Critical"):
+        reasons.append(f"{defect_risk['level'].lower()}-severity defect")
+    note = (f"Raised from {band} to {worst}: " + "; ".join(reasons)
+            + f". The {len(factors)}-factor total alone would understate this.")
+    return worst, note
+
+
 def band_for_score(score: int) -> str:
     if score <= BAND_LOW_MAX:
         return "Low"
@@ -225,7 +324,8 @@ def _score_parameter(key: str, value: float) -> Factor:
 DEFECT_POINTS = {"Low": 5, "Medium": 20, "High": 35, "Critical": 50}
 
 
-def score_telemetry(telemetry: dict, defect_risk: Risk | None = None) -> dict:
+def score_telemetry(telemetry: dict, defect_risk: Risk | None = None,
+                    defect_label: str = "Detected defect") -> dict:
     """Combine telemetry readings (and any detected defect) into a 0-100 score.
 
     Unknown/blank/non-numeric parameters are skipped rather than guessed at —
@@ -249,7 +349,7 @@ def score_telemetry(telemetry: dict, defect_risk: Risk | None = None) -> dict:
         score += pts
         defect_factor = {
             "parameter": "defect",
-            "label": "Detected defect",
+            "label": defect_label,
             "value": None,
             "unit": "",
             "band": defect_risk["level"].lower(),
@@ -260,6 +360,9 @@ def score_telemetry(telemetry: dict, defect_risk: Risk | None = None) -> dict:
 
     score = min(score, 100)
     band = band_for_score(score)
+    # Must run BEFORE the advisory is chosen, or the text would describe the
+    # unfloored band and contradict the level shown beside it.
+    band, band_note = _apply_floors(band, factors, defect_risk)
 
     # Anything above the low band, or any single critical reading, wants eyes on it.
     needs_review = band != "Low" or any(f["band"] == "critical" for f in factors)
@@ -281,5 +384,7 @@ def score_telemetry(telemetry: dict, defect_risk: Risk | None = None) -> dict:
         "factors": factors,
         "needs_human_review": needs_review,
         "advisory": advisory,
+        # Set only when a single input forced the band above the additive total.
+        "band_note": band_note,
         "scored_parameters": len([f for f in factors if f["parameter"] != "defect"]),
     }

@@ -12,11 +12,61 @@ const TELEMETRY_FIELDS = [
   { key: "vibration_mm_s", label: "Vibration", unit: "mm/s", placeholder: "3.1" },
 ];
 
+const SEVERITY_TABLE = {
+  crack: "Critical",
+  tear: "Critical",
+  torn: "Critical",
+  dent: "Medium",
+  "missing-head": "High",
+  "paint-off": "Medium",
+  scratch: "Low",
+  "stress corrosion cracking": "Critical",
+  corrosion: "High",
+  rust: "High",
+  rusted: "High",
+  rusting: "High",
+  delamination: "High",
+  buckling: "High",
+  exfoliation: "High",
+  pitting: "High",
+  deformation: "Medium",
+  discoloration: "Low",
+};
+
+function getSeverity(label) {
+  const k = (label || "").trim().toLowerCase();
+  return SEVERITY_TABLE[k] || "Medium";
+}
+
+function DetectionCrop({ src, box }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!src || !box || !canvasRef.current) return;
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const [x1, y1, x2, y2] = box;
+      const w = Math.max(1, x2 - x1);
+      const h = Math.max(1, y2 - y1);
+      ctx.clearRect(0, 0, 72, 72);
+      ctx.drawImage(img, x1, y1, w, h, 0, 0, 72, 72);
+    };
+  }, [src, box]);
+
+  return <canvas ref={canvasRef} width={72} height={72} className="crop" aria-label="Detected defect crop" />;
+}
+
 export default function App() {
   const [tab, setTab] = useState("diagnose");
   const [query, setQuery] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [imgDim, setImgDim] = useState({ w: 0, h: 0 });
+  const [conf, setConf] = useState(0.30);
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState(null);
@@ -25,10 +75,16 @@ export default function App() {
   const [telemetry, setTelemetry] = useState({});
   const [liveStages, setLiveStages] = useState([]);
   const timer = useRef(null);
+  const imgRef = useRef(null);
+  const tabRefs = useRef({});
 
-  // Polled, not one-shot: if the backend dies mid-demo the header says so
-  // within POLL_MS instead of every request just failing silently. Cheap —
-  // every stage /health/pipeline reports is a cached lookup, not recomputation.
+  const tabList = [
+    ["diagnose", "Diagnose"],
+    ["manuals", "Manuals"],
+    ["history", "Case History"],
+    ["status", "System Status"],
+  ];
+
   const refreshPipeline = useCallback(() => {
     return fetch(`${API}/health/pipeline`)
       .then((r) => r.json())
@@ -42,8 +98,6 @@ export default function App() {
     return () => clearInterval(id);
   }, [refreshPipeline]);
 
-  // A diagnosis takes ~8-9s on the demo laptop. Without a running counter that
-  // reads as a hang, which is the worst thing that can happen in front of a jury.
   useEffect(() => {
     if (busy) {
       const started = Date.now();
@@ -58,9 +112,26 @@ export default function App() {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     setPreview(f ? URL.createObjectURL(f) : null);
+    setImgDim({ w: 0, h: 0 });
   }
 
   const hasTelemetry = Object.values(telemetry).some((v) => String(v ?? "").trim());
+
+  function onTabKeyDown(e, currentTab) {
+    const order = tabList.map(([id]) => id);
+    const currIdx = order.indexOf(currentTab);
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const nextId = order[(currIdx + 1) % order.length];
+      setTab(nextId);
+      tabRefs.current[nextId]?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevId = order[(currIdx - 1 + order.length) % order.length];
+      setTab(prevId);
+      tabRefs.current[prevId]?.focus();
+    }
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -77,6 +148,7 @@ export default function App() {
     const fd = new FormData();
     fd.append("query", query);
     if (file) fd.append("image", file);
+    if (conf != null) fd.append("conf", String(conf));
     for (const { key } of TELEMETRY_FIELDS) {
       const v = String(telemetry[key] ?? "").trim();
       if (v) fd.append(key, v);
@@ -90,8 +162,6 @@ export default function App() {
       }
       if (!res.body) throw new Error("no-stream");
 
-      // Parse SSE off the response body. EventSource can't be used here —
-      // it's GET-only and this is a multipart POST.
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -101,7 +171,7 @@ export default function App() {
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         const blocks = buf.split("\n\n");
-        buf = blocks.pop() ?? "";           // keep the trailing partial block
+        buf = blocks.pop() ?? "";
         for (const block of blocks) {
           let ev = "message";
           let data = null;
@@ -119,8 +189,6 @@ export default function App() {
       }
       if (!finished) throw new Error("The stream ended before a result arrived.");
     } catch (err) {
-      // Insurance for a live demo: if streaming fails for any reason, fall
-      // back to the plain endpoint rather than showing the user an error.
       try {
         const res2 = await fetch(`${API}/diagnose`, { method: "POST", body: fd });
         const d2 = await res2.json();
@@ -136,14 +204,13 @@ export default function App() {
 
   const risk = result?.overall_risk;
   const failedStages = (result?.stages ?? []).filter((s) => !s.ok);
-  // No image supplied at all -> don't show a detection card; that's not an
-  // empty state, there was simply nothing to detect on.
   const imageSkipped = (result?.stages ?? []).some((s) => s.name === "detection" && s.skipped);
 
   function reset() {
     setQuery("");
     setFile(null);
     setPreview(null);
+    setImgDim({ w: 0, h: 0 });
     setTelemetry({});
     setResult(null);
     setError(null);
@@ -154,6 +221,32 @@ export default function App() {
 
   return (
     <main className="wrap">
+      {/* Printable Report Header (Active on Ctrl+P) */}
+      <div className="print-only print-head">
+        <h1>PRISM Maintenance &amp; Diagnostic Report</h1>
+        <dl>
+          <dt>Timestamp</dt>
+          <dd>{new Date().toLocaleString()}</dd>
+          <dt>Query</dt>
+          <dd>{query || "None"}</dd>
+          {file && (
+            <>
+              <dt>Attached Image</dt>
+              <dd>{file.name}</dd>
+            </>
+          )}
+          {result?.risk_score && (
+            <>
+              <dt>Risk Assessment</dt>
+              <dd>{result.risk_score}</dd>
+            </>
+          )}
+        </dl>
+        <p className="print-caveat">
+          Grounded in FAA maintenance manuals. Non-airworthiness advisory record.
+        </p>
+      </div>
+
       <div className="topbar">
         <div className="topbar-inner">
           <div className="brand">
@@ -176,262 +269,372 @@ export default function App() {
 
       <div className="content">
         <nav className="tabs" role="tablist">
-          {[
-            ["diagnose", "Diagnose"],
-            ["manuals", "Manuals"],
-            ["history", "Case History"],
-            ["status", "System Status"],
-          ].map(([id, labelText]) => (
+          {tabList.map(([id, labelText]) => (
             <button
               key={id}
+              ref={(el) => (tabRefs.current[id] = el)}
               type="button"
               role="tab"
               aria-selected={tab === id}
+              tabIndex={tab === id ? 0 : -1}
               className={`tab${tab === id ? " active" : ""}`}
               onClick={() => setTab(id)}
+              onKeyDown={(e) => onTabKeyDown(e, id)}
             >
               {labelText}
             </button>
           ))}
         </nav>
 
-      {tab === "manuals" && <div className="narrow"><Manuals /></div>}
-      {tab === "history" && <div className="narrow"><CaseHistory /></div>}
-      {tab === "status" && (
-        <div className="narrow"><SystemStatus p={pipeline} onRefresh={refreshPipeline} /></div>
-      )}
-
-      {tab === "diagnose" && <>
-      {pipeline && <Readiness p={pipeline} />}
-
-      <div className="split">
-      <div className="col-input">
-      <form onSubmit={onSubmit} className="card">
-        <label htmlFor="q">Symptom description</label>
-        <textarea
-          id="q"
-          rows={3}
-          value={query}
-          placeholder="e.g. Pitting corrosion on the landing gear strut, roughly 2mm deep."
-          onChange={(e) => setQuery(e.target.value)}
-        />
-
-        <label htmlFor="img">Photo (optional)</label>
-        <div className="file-row">
-          <input id="img" type="file" accept="image/*" onChange={onFile} className="file-input-native" />
-          <label htmlFor="img" className="file-btn">
-            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M4 13.5V15a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 16 15v-1.5M10 13V4m0 0 3 3m-3-3-3 3"
-                    stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Choose photo
-          </label>
-          <span className="file-name muted small">{file ? file.name : "No photo attached"}</span>
-        </div>
-        {preview && <img className="preview" src={preview} alt="Upload preview" />}
-        {file && !query.trim() && (
-          <p className="hint">
-            A photo alone rarely produces a diagnosis — describe what you are seeing
-            as well, so retrieval has something to search the manuals with.
-          </p>
+        {tab === "manuals" && <div className="narrow"><Manuals /></div>}
+        {tab === "history" && <div className="narrow"><CaseHistory /></div>}
+        {tab === "status" && (
+          <div className="narrow"><SystemStatus p={pipeline} onRefresh={refreshPipeline} /></div>
         )}
 
-        <label>Live telemetry (optional)</label>
-        <div className="telem-grid">
-          {TELEMETRY_FIELDS.map(({ key, label: l, unit, placeholder }) => (
-            <div className="telem-cell" key={key}>
-              <input
-                id={key}
-                type="number"
-                step="any"
-                inputMode="decimal"
-                value={telemetry[key] ?? ""}
-                placeholder={placeholder}
-                onChange={(e) => setTelemetry({ ...telemetry, [key]: e.target.value })}
-              />
-              <label htmlFor={key} className="telem-lbl">{l} <span>{unit}</span></label>
-            </div>
-          ))}
-        </div>
+        {tab === "diagnose" && (
+          <>
+            {pipeline && <Readiness p={pipeline} />}
 
-        <button type="submit" disabled={busy}>
-          {busy ? `Diagnosing… ${elapsed.toFixed(1)}s` : "Diagnose"}
-        </button>
-        {(result || error || query || file || hasTelemetry) && !busy && (
-          <button type="button" className="secondary ghost full" onClick={reset}>
-            Clear and start a new diagnosis
-          </button>
-        )}
-        {busy && (
-          <p className="muted small">
-            Running detection, retrieval and local generation. Typically 8–10 seconds.
-          </p>
-        )}
-      </form>
+            <div className="split">
+              <div className="col-input">
+                <form onSubmit={onSubmit} className="card">
+                  <label htmlFor="q">Symptom description</label>
+                  <textarea
+                    id="q"
+                    rows={3}
+                    value={query}
+                    placeholder="e.g. rusted bolts and cracks"
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
 
-      {error && <div className="card err"><strong>Request failed.</strong> {error}</div>}
-      </div>
+                  <label htmlFor="img">Photo (optional)</label>
+                  <div className="file-row">
+                    <input id="img" type="file" accept="image/*" onChange={onFile} className="file-input-native" />
+                    <label htmlFor="img" className="file-btn">
+                      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M4 13.5V15a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 16 15v-1.5M10 13V4m0 0 3 3m-3-3-3 3"
+                              stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Choose photo
+                    </label>
+                    <span className="file-name muted small">{file ? file.name : "No photo attached"}</span>
+                  </div>
 
-      <div className="col-output">
-      {busy && <LiveProgress stages={liveStages} elapsed={elapsed} />}
-      {!result && !error && !busy && (
-        <div className="card placeholder">
-          <p className="muted">
-            Results appear here — detected defects, risk score, the grounded
-            diagnosis with its cited manual passages, and similar past cases.
-          </p>
-        </div>
-      )}
-      {result && (
-        <>
-          {result.risk_assessment
-            ? <RiskPanel a={result.risk_assessment} />
-            : risk && (
-              <section className={`card risk risk-${risk.level.toLowerCase()}`}>
-                <h2>Risk</h2>
-                <p className="risk-level">{risk.level}</p>
-                <p className="muted">{risk.rationale}</p>
-                {risk.needs_human_review && (
-                  <p className="review">Requires human review before any action.</p>
-                )}
-              </section>
-            )}
+                  {/* Photo preview with bounding box overlay */}
+                  {preview && (
+                    <div className="shot">
+                      <img
+                        ref={imgRef}
+                        src={preview}
+                        alt="Uploaded inspection subject"
+                        onLoad={(e) => {
+                          setImgDim({
+                            w: e.target.naturalWidth || e.target.width,
+                            h: e.target.naturalHeight || e.target.height,
+                          });
+                        }}
+                      />
+                      {result?.detections?.map((d, i) => {
+                        if (!imgDim.w || !imgDim.h || !d.box) return null;
+                        const [x1, y1, x2, y2] = d.box;
+                        const left = (x1 / imgDim.w) * 100;
+                        const top = (y1 / imgDim.h) * 100;
+                        const width = ((x2 - x1) / imgDim.w) * 100;
+                        const height = ((y2 - y1) / imgDim.h) * 100;
+                        const sev = getSeverity(d.label).toLowerCase();
+                        const isNearTop = top < 8;
+                        return (
+                          <div
+                            key={i}
+                            className={`box sev-${sev}${isNearTop ? " tag-inside" : ""}`}
+                            style={{
+                              left: `${left}%`,
+                              top: `${top}%`,
+                              width: `${width}%`,
+                              height: `${height}%`,
+                            }}
+                          >
+                            <span className="box-tag">
+                              {d.label} {(d.confidence * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-          <section className="card">
-            <h2>Diagnosis</h2>
-            {result.refused ? (
-              <p className="refused">
-                The manuals do not cover this query. PRISM declined rather than guessing.
-              </p>
-            ) : result.needs_input ? (
-              // Not a failure — there was simply nothing to work from. Saying so
-              // plainly beats "No diagnosis produced", which reads like a crash.
-              <p className="needs-input">{result.needs_input}</p>
-            ) : result.actions?.length > 0 ? (
-              // The model sometimes emits a "Likely defect / numbered steps"
-              // shape on its own. Render it structured when it does, and fall
-              // back to the raw prose when it doesn't — the prompt does not
-              // force the format (see _parse_structure in models/rag.py).
-              <>
-                {result.likely_defect && (
-                  <p className="likely-defect">{result.likely_defect}</p>
-                )}
-                <ol className="actions">
-                  {result.actions.map((a, i) => <li key={i}>{a}</li>)}
-                </ol>
-              </>
-            ) : (
-              <p className="diagnosis">{result.diagnosis || "No diagnosis produced."}</p>
-            )}
-            {result.grounded === false && !result.refused && (
-              <p className="warn">
-                Retrieval found no confident passage — treat this answer with caution.
-              </p>
-            )}
-            {result.cited_ok === false && (
-              <p className="warn">
-                This answer did not cite a retrieved source. Possible hallucination.
-              </p>
-            )}
-            {result.citations?.length > 0 && (
-              <p className="cites">
-                Cited: {result.citations.map((c) => <code key={c}>{c}</code>)}
-              </p>
-            )}
-            {!result.refused && !result.needs_input && result.diagnosis && (
-              <ResolveCase result={result} query={query} />
-            )}
-          </section>
+                  {/* Detection Sensitivity Slider */}
+                  <div className="conf-row">
+                    <label htmlFor="conf">
+                      Detection sensitivity — show boxes at or above {Math.round(conf * 100)}%
+                    </label>
+                    <input
+                      id="conf"
+                      type="range"
+                      min="0.05"
+                      max="0.95"
+                      step="0.05"
+                      value={conf}
+                      onChange={(e) => setConf(parseFloat(e.target.value))}
+                    />
+                    <p className="muted small">
+                      Lower finds more, including false positives. Higher reports only what the model
+                      is sure of, and will miss real defects — measured recall at the default is 0.472,
+                      so this trade-off is real, not theoretical.
+                    </p>
+                  </div>
 
-          <section className="card">
-            <h2>Manual passages used</h2>
-            {result.sources?.length > 0 ? (
-              <ul className="sources">
-                {result.sources.map((s, i) => <SourceItem key={i} s={s} />)}
-              </ul>
-            ) : (
-              <p className="muted small">
-                No manual passage met the confidence threshold for this query, so
-                nothing was handed to the model to reason from.
-              </p>
-            )}
-          </section>
+                  <fieldset className="telem-fs">
+                    <legend>Live telemetry (optional)</legend>
+                    <div className="telem-grid">
+                      {TELEMETRY_FIELDS.map(({ key, label: l, unit, placeholder }) => (
+                        <div className="telem-cell" key={key}>
+                          <input
+                            id={key}
+                            type="number"
+                            step="any"
+                            inputMode="decimal"
+                            value={telemetry[key] ?? ""}
+                            placeholder={placeholder}
+                            onChange={(e) => setTelemetry({ ...telemetry, [key]: e.target.value })}
+                          />
+                          <label htmlFor={key} className="telem-lbl">{l} <span>{unit}</span></label>
+                        </div>
+                      ))}
+                    </div>
+                  </fieldset>
 
-          {!imageSkipped && (
-            <section className="card">
-              <h2>Detected in image</h2>
-              {result.detections?.length > 0 ? (
-                <>
-                  {result.detections[0].pretrained && (
-                    <p className="warn">
-                      Pretrained model — generic object classes, not aircraft defects.
+                  <button type="submit" disabled={busy}>
+                    {busy ? `Diagnosing… ${elapsed.toFixed(1)}s` : "Diagnose"}
+                  </button>
+                  {(result || error || query || file || hasTelemetry) && !busy && (
+                    <button type="button" className="secondary ghost full" onClick={reset}>
+                      Clear and start a new diagnosis
+                    </button>
+                  )}
+                  {busy && (
+                    <p className="muted small">
+                      Running detection, retrieval and local generation. Typically 8–10 seconds.
                     </p>
                   )}
-                  <ul className="dets">
-                    {result.detections.map((d, i) => (
-                      <li key={i}>
-                        <strong>{d.label}</strong>
-                        <span className="muted"> {(d.confidence * 100).toFixed(1)}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : (
-                <p className="muted small">
-                  Nothing detected in this image. The detector is still the
-                  pretrained model, which knows generic objects rather than
-                  aircraft defects — the diagnosis below came from your
-                  description.
-                </p>
-              )}
-            </section>
-          )}
+                </form>
 
-          <section className="card">
-            <h2>Similar past cases</h2>
-            {result.similar_cases?.length > 0 ? (
-              <ul className="cases">
-                {result.similar_cases.map((c) => (
-                  <li key={c.case_id}>
-                    <strong>{c.case_id}</strong> — {c.defect_type}
-                    <span className="muted"> ({(c.similarity * 100).toFixed(0)}% similar)</span>
-                    <div className="muted">{c.resolution || c.diagnosis}</div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted small">
-                No similar past cases yet. Resolve this diagnosis above and it
-                becomes the first one for a symptom like this.
-              </p>
-            )}
-          </section>
+                {error && <div className="card err"><strong>Request failed.</strong> {error}</div>}
+              </div>
 
-          <section className="card">
-            <h2>Pipeline</h2>
-            <ul className="stages">
-              {result.stages.map((s) => (
-                <li key={s.name}>
-                  <span className={s.ok ? (s.skipped ? "dot skip" : "dot ok") : "dot bad"} />
-                  <strong>{s.name}</strong>
-                  <span className="muted"> {s.ms.toFixed(0)} ms</span>
-                  {s.note && <div className="muted small">{s.note}</div>}
-                  {s.error && <div className="errtext">{s.error}</div>}
-                </li>
-              ))}
-            </ul>
-            <p className="muted small">Total {result.timing_ms.total.toFixed(0)} ms</p>
-            {failedStages.length > 0 && (
-              <p className="warn">
-                {failedStages.length} stage(s) failed — the rest of the result is still valid.
-              </p>
-            )}
-          </section>
-        </>
-      )}
-      </div>
-      </div>
-      </>}
+              <div className="col-output">
+                {/* Print Action Row at Top Right */}
+                {result && (
+                  <div className="card export-row no-print">
+                    <button type="button" className="secondary" onClick={() => window.print()}>
+                      Print / Save as PDF
+                    </button>
+                    <span className="muted small">
+                      Prints the diagnosis, cited passages, risk and detections as a one-page record.
+                    </span>
+                  </div>
+                )}
+
+                {busy && <LiveProgress stages={liveStages} elapsed={elapsed} />}
+
+                {!result && !error && !busy && (
+                  <div className="card placeholder">
+                    <p className="muted">
+                      Results appear here — detected defects, risk score, the grounded
+                      diagnosis with its cited manual passages, and similar past cases.
+                    </p>
+                  </div>
+                )}
+
+                {result && (
+                  <>
+                    {/* Predictive Risk Score Panel */}
+                    {result.risk_assessment ? (
+                      <RiskPanel a={result.risk_assessment} />
+                    ) : (
+                      risk && (
+                        <section className={`card risk risk-${risk.level.toLowerCase()}`}>
+                          <h2>Predictive risk score</h2>
+                          <div className="risk-score-row">
+                            <span className="risk-num">
+                              {risk.level === "Critical" ? 90 : risk.level === "High" ? 75 : risk.level === "Medium" ? 50 : 20}
+                            </span>
+                            <span className="muted">/ 100</span>
+                            <span className={`tag risk-tag r-${risk.level.toLowerCase()}`}>
+                              {risk.level.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="rbar">
+                            <div
+                              className={`rfill r-${risk.level.toLowerCase()}`}
+                              style={{
+                                width: `${
+                                  risk.level === "Critical" ? 90 : risk.level === "High" ? 75 : risk.level === "Medium" ? 50 : 20
+                                }%`,
+                              }}
+                            />
+                          </div>
+                          <ul className="factors">
+                            <li>
+                              <span className={`fdot ${risk.level.toLowerCase()}`} />
+                              <strong>Detected / Reported defect</strong>
+                              <span className="muted"> — {risk.rationale}</span>
+                            </li>
+                          </ul>
+                          {risk.needs_human_review && (
+                            <p className="review">Requires human review before any action.</p>
+                          )}
+                          <p className="muted small disclaimer">
+                            Illustrative thresholds for demonstration — not certified airworthiness limits.
+                          </p>
+                        </section>
+                      )
+                    )}
+
+                    {/* Grounded Diagnosis Panel */}
+                    <section className="card">
+                      <h2>Diagnosis</h2>
+                      {result.refused ? (
+                        <p className="refused">
+                          The manuals do not cover this query. PRISM declined rather than guessing.
+                        </p>
+                      ) : result.needs_input ? (
+                        <p className="needs-input">{result.needs_input}</p>
+                      ) : result.actions?.length > 0 ? (
+                        <>
+                          {result.likely_defect && (
+                            <p className="likely-defect">{result.likely_defect}</p>
+                          )}
+                          <ol className="actions">
+                            {result.actions.map((a, i) => <li key={i}>{a}</li>)}
+                          </ol>
+                        </>
+                      ) : (
+                        <p className="diagnosis">{result.diagnosis || "No diagnosis produced."}</p>
+                      )}
+                      {result.grounded === false && !result.refused && (
+                        <p className="warn">
+                          Retrieval found no confident passage — treat this answer with caution.
+                        </p>
+                      )}
+                      {result.cited_ok === false && (
+                        <p className="warn">
+                          This answer did not cite a retrieved source. Possible hallucination.
+                        </p>
+                      )}
+                      {result.citations?.length > 0 && (
+                        <p className="cites">
+                          Cited: {result.citations.map((c) => <code key={c}>{c}</code>)}
+                        </p>
+                      )}
+                      {!result.refused && !result.needs_input && result.diagnosis && (
+                        <ResolveCase result={result} query={query} />
+                      )}
+                    </section>
+
+                    {/* Detected in Image Panel with 72px Crops */}
+                    {!imageSkipped && (
+                      <section className="card">
+                        <h2>Detected in image</h2>
+                        {result.detections?.length > 0 ? (
+                          <>
+                            {result.detections[0].pretrained && (
+                              <p className="warn">
+                                Pretrained model — generic object classes, not aircraft defects.
+                              </p>
+                            )}
+                            <ul className="dets">
+                              {result.detections.map((d, i) => {
+                                const sev = getSeverity(d.label);
+                                return (
+                                  <li key={i} className={`det-row sev-${sev.toLowerCase()}`}>
+                                    {preview && d.box && (
+                                      <DetectionCrop src={preview} box={d.box} />
+                                    )}
+                                    <div className="det-body">
+                                      <strong>{d.label}</strong>
+                                      <span className="muted"> {(d.confidence * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <span className="sev-tag">{sev}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </>
+                        ) : (
+                          <p className="muted small">
+                            Nothing detected in this image. The detector is still the
+                            pretrained model, which knows generic objects rather than
+                            aircraft defects — the diagnosis came from your description.
+                          </p>
+                        )}
+                      </section>
+                    )}
+
+                    {/* Manual Passages Panel */}
+                    <section className="card">
+                      <h2>Manual passages used</h2>
+                      {result.sources?.length > 0 ? (
+                        <ul className="sources">
+                          {result.sources.map((s, i) => <SourceItem key={i} s={s} />)}
+                        </ul>
+                      ) : (
+                        <p className="muted small">
+                          No manual passage met the confidence threshold for this query, so
+                          nothing was handed to the model to reason from.
+                        </p>
+                      )}
+                    </section>
+
+                    {/* Similar Past Cases Panel */}
+                    <section className="card">
+                      <h2>Similar past cases</h2>
+                      {result.similar_cases?.length > 0 ? (
+                        <ul className="cases">
+                          {result.similar_cases.map((c) => (
+                            <li key={c.case_id}>
+                              <strong>{c.case_id}</strong> — {c.defect_type}
+                              <span className="muted"> ({(c.similarity * 100).toFixed(0)}% similar)</span>
+                              <div className="muted">{c.resolution || c.diagnosis}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="muted small">
+                          No similar past cases yet. Resolve this diagnosis above and it
+                          becomes the first one for a symptom like this.
+                        </p>
+                      )}
+                    </section>
+
+                    {/* Pipeline Stages Panel */}
+                    <section className="card">
+                      <h2>Pipeline</h2>
+                      <ul className="stages">
+                        {result.stages.map((s) => (
+                          <li key={s.name}>
+                            <span className={s.ok ? (s.skipped ? "dot skip" : "dot ok") : "dot bad"} />
+                            <strong>{s.name}</strong>
+                            <span className="muted"> {s.ms.toFixed(0)} ms</span>
+                            {s.note && <div className="muted small">{s.note}</div>}
+                            {s.error && <div className="errtext">{s.error}</div>}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="muted small">Total {result.timing_ms.total.toFixed(0)} ms</p>
+                      {failedStages.length > 0 && (
+                        <p className="warn">
+                          {failedStages.length} stage(s) failed — the rest of the result is still valid.
+                        </p>
+                      )}
+                    </section>
+                  </>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <p className="footer-note">
@@ -507,28 +710,30 @@ function SourceItem({ s }) {
 }
 
 function RiskPanel({ a }) {
-  const band = a.band.toLowerCase();
+  const band = (a.band || "Medium").toLowerCase();
   return (
     <section className={`card risk risk-${band}`}>
       <h2>Predictive risk score</h2>
       <div className="risk-score-row">
         <span className="risk-num">{a.score}</span>
         <span className="muted">/ 100</span>
-        <span className={`tag risk-tag r-${band}`}>{a.band}</span>
+        <span className={`tag risk-tag r-${band}`}>{a.band.toUpperCase()}</span>
       </div>
-      <div className="rbar"><div className={`rfill r-${band}`} style={{ width: `${a.score}%` }} /></div>
+      <div className="rbar"><div className={`rfill r-${band}`} style={{ width: `${Math.min(100, Math.max(0, a.score))}%` }} /></div>
       <ul className="factors">
-        {a.factors.map((f) => (
-          <li key={f.parameter}>
+        {a.factors.map((f, i) => (
+          <li key={i}>
             <span className={`fdot ${f.band}`} />
             <strong>{f.label}</strong>
-            {f.value != null && <span className="muted"> {f.value}{f.unit}</span>}
+            {f.value != null && <span> {f.value}{f.unit}</span>}
             <span className="muted"> — {f.note}</span>
             {f.points > 0 && <span className="fpts">+{f.points}</span>}
           </li>
         ))}
       </ul>
-      <p className={a.needs_human_review ? "review" : "muted small"}>{a.advisory}</p>
+      {a.advisory && (
+        <p className="review">{a.advisory}</p>
+      )}
       <p className="muted small disclaimer">
         Illustrative thresholds for demonstration — not certified airworthiness limits.
       </p>

@@ -7,6 +7,9 @@
   --ok: #0f7a4b; --warn: #a15c00; --err: #b42318;
   --r-low: #0f7a4b; --r-med: #a15c00; --r-high: #c2410c; --r-crit: #b42318;
   --r-low-bg: #ecfdf3; --r-med-bg: #fffaeb; --r-high-bg: #fff4ed; --r-crit-bg: #fef3f2;
+  /* Text drawn ON a severity fill. The severity colours are dark in light
+     mode and pale in dark mode, so the ink has to flip with them. */
+  --sev-ink: #ffffff;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -16,6 +19,7 @@
     --ok: #34d399; --warn: #fbbf24; --err: #f87171;
     --r-low: #34d399; --r-med: #fbbf24; --r-high: #fb923c; --r-crit: #f87171;
     --r-low-bg: #0d1f18; --r-med-bg: #241c0a; --r-high-bg: #24150a; --r-crit-bg: #26120f;
+    --sev-ink: #0a0e16;
   }
 }
 * { box-sizing: border-box; }
@@ -129,6 +133,54 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 ul.sources, ul.dets, ul.cases, ul.stages { list-style: none; margin: 0; padding: 0; }
 ul.sources li, ul.dets li, ul.cases li { padding: 9px 0; border-bottom: 1px solid var(--line); }
 ul.sources li:last-child, ul.dets li:last-child, ul.cases li:last-child { border-bottom: 0; }
+
+/* ---------- detection overlay + severity colour ----------
+   One severity token per class drives BOTH the box on the photo and the row
+   in the list, so a crack can never be outlined red and listed green. */
+.sev-low { --sev: var(--r-low); }
+.sev-medium { --sev: var(--r-med); }
+.sev-high { --sev: var(--r-high); }
+.sev-critical { --sev: var(--r-crit); }
+.sev-unknown { --sev: var(--muted); }
+
+.shot {
+  position: relative; display: inline-block; max-width: 100%;
+  margin: 0 0 14px; line-height: 0;
+}
+.shot img { display: block; max-width: 100%; height: auto; border-radius: 10px; }
+
+.box {
+  position: absolute;
+  border: 2px solid var(--sev);
+  border-radius: 3px;
+  pointer-events: none;
+  /* A thin dark halo so a pale box stays visible against a bright airframe. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .45);
+}
+.box-tag {
+  position: absolute; left: -2px; bottom: 100%; margin-bottom: 3px;
+  padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+  font: 600 0.72rem/1.55 inherit;
+  background: var(--sev); color: var(--sev-ink);
+}
+/* A box hard against the top of the frame has no room for a label above it. */
+.tag-inside .box-tag { bottom: auto; top: 3px; left: 3px; }
+
+.det-row {
+  display: flex; align-items: center; gap: 11px;
+  border-left: 3px solid var(--sev); padding-left: 10px;
+}
+.det-body { flex: 1 1 auto; min-width: 0; }
+.crop {
+  flex: 0 0 auto; width: 72px; height: 72px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--bg);
+  image-rendering: -webkit-optimize-contrast;
+}
+.sev-tag {
+  flex: 0 0 auto; padding: 1px 8px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .02em;
+  background: var(--sev); color: var(--sev-ink);
+}
 
 /* ---------- risk banner ---------- */
 .risk { border-left: 4px solid transparent; }
@@ -339,3 +391,88 @@ ul.progress li.done .pmark { color: var(--ok); }
 .likely-defect { margin: 0 0 12px; font-weight: 600; line-height: 1.55; }
 ol.actions { margin: 0; padding-left: 22px; }
 ol.actions li { padding: 4px 0; line-height: 1.55; }
+
+
+/* ---------- detection sensitivity ---------- */
+.conf-row { margin-top: 14px; }
+.conf-row label { display: block; }
+.conf-row input[type="range"] {
+  width: 100%; margin: 8px 0 2px; accent-color: var(--teal-500);
+}
+
+/* ---------- export row ---------- */
+.export-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.export-row button { width: auto; margin: 0; }
+
+/* ---------- tablet / touch ----------
+   The dashboard already collapses to one column at 900px. The real tablet
+   defect was the telemetry grid: four number inputs hard-coded into one row at
+   every width, ~170px each on a 768px screen. */
+@media (max-width: 1100px) {
+  .telem-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .telem-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  /* Four tabs do not fit a phone width; scroll them rather than wrap into a
+     second row that shifts the whole page down. */
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; }
+}
+@media (pointer: coarse) {
+  /* A technician at an airframe is using a finger, not a mouse. 44px is the
+     usual minimum touch target. */
+  button, .tab, .file-btn { min-height: 44px; }
+  .telem-cell input { min-height: 44px; }
+  .conf-row input[type="range"] { height: 32px; }
+}
+
+/* ---------- focus visibility ----------
+   :where() keeps specificity at 0, so any component that sets its own focus
+   style still wins; this is only the floor. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--teal-400);
+  outline-offset: 2px;
+}
+
+/* fieldset carries browser chrome that would box the telemetry group in. */
+.telem-fs { border: 0; padding: 0; margin: 18px 0 0; min-width: 0; }
+.telem-fs legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+
+/* ---------- print / export as report ---------- */
+.print-only { display: none; }
+
+@media print {
+  /* Force the light palette: printing the dark theme wastes toner and the
+     pale severity colours vanish on white. */
+  :root, :root:not([data-theme="light"]) {
+    --bg: #fff; --fg: #000; --card: #fff; --line: #999; --muted: #444;
+    --r-low: #0f7a4b; --r-med: #a15c00; --r-high: #c2410c; --r-crit: #b42318;
+    --sev-ink: #fff;
+  }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff; color: #000; }
+
+  .topbar, .tabs, .col-input, .placeholder, .footer-note, .no-print { display: none !important; }
+
+  .wrap, .content, .narrow { max-width: none; padding: 0; margin: 0; }
+  .split { display: block; }
+  .card {
+    break-inside: avoid; page-break-inside: avoid;
+    box-shadow: none; border: 1px solid #999; margin-bottom: 10px;
+  }
+  .shot img { max-height: 320px; width: auto; }
+
+  .print-only { display: block; }
+  .print-head { border-bottom: 2px solid #000; margin-bottom: 14px; padding-bottom: 10px; }
+  .print-head h1 { font-size: 1.25rem; margin: 0 0 8px; }
+  .print-head dl {
+    display: grid; grid-template-columns: max-content 1fr;
+    gap: 2px 12px; margin: 0; font-size: 0.86rem;
+  }
+  .print-head dt { font-weight: 700; }
+  .print-head dd { margin: 0; }
+  .print-caveat { margin: 10px 0 0; font-size: 0.78rem; font-style: italic; }
+}

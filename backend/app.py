@@ -30,6 +30,27 @@ MAX_UPLOAD_MB = int(os.getenv("PRISM_MAX_UPLOAD_MB", "20"))
 TELEMETRY_FIELDS = ("temperature_c", "pressure_psi", "runtime_hrs", "vibration_mm_s")
 
 
+# Detection confidence floor, optionally sent per request by the UI slider.
+# CLAMPED rather than rejected: a slider that can emit an out-of-range value is
+# a UI bug, and failing a whole diagnosis over it helps nobody. A blank or
+# unparseable value means "use the configured default", not "use 0" — zero
+# would return every speculative box the detector has.
+CONF_MIN, CONF_MAX = 0.05, 0.95
+
+
+def _parse_conf(raw):
+    """Per-request detection confidence floor, or None to use detect.py's default."""
+    if raw is None or str(raw).strip() == "":
+        return None
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if v != v:                      # NaN never compares true; clamp would pass it through
+        return None
+    return min(max(v, CONF_MIN), CONF_MAX)
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app)
@@ -68,6 +89,7 @@ def create_app() -> Flask:
             for key in TELEMETRY_FIELDS
             if (request.form.get(key) or "").strip()
         }
+        conf = _parse_conf(request.form.get("conf"))
 
         if not query and (upload is None or not upload.filename) and not telemetry:
             return jsonify({
@@ -92,7 +114,8 @@ def create_app() -> Flask:
                 upload.save(tmp_path)
 
             from models.pipeline import run_diagnosis
-            result = run_diagnosis(image_path=tmp_path, query=query, telemetry=telemetry)
+            result = run_diagnosis(image_path=tmp_path, query=query,
+                                   telemetry=telemetry, conf=conf)
             return jsonify(result), 200
         finally:
             # Never leave uploads behind; a long demo session would accumulate them.
@@ -118,6 +141,7 @@ def create_app() -> Flask:
             for key in TELEMETRY_FIELDS
             if (request.form.get(key) or "").strip()
         }
+        conf = _parse_conf(request.form.get("conf"))
 
         if not query and (upload is None or not upload.filename) and not telemetry:
             return jsonify({
@@ -146,7 +170,7 @@ def create_app() -> Flask:
             from models.pipeline import run_diagnosis_stream
             try:
                 for kind, data in run_diagnosis_stream(
-                    image_path=tmp_path, query=query, telemetry=telemetry
+                    image_path=tmp_path, query=query, telemetry=telemetry, conf=conf
                 ):
                     yield f"event: {kind}\ndata: {json.dumps(data)}\n\n"
             except Exception as e:                      # noqa: BLE001

@@ -52,6 +52,7 @@ def _run(
     query: str = "",
     k: int = 3,
     telemetry: Optional[dict] = None,
+    conf: Optional[float] = None,
 ):
     """The pipeline, as a generator of events.
 
@@ -70,7 +71,10 @@ def _run(
     detections: list[dict] = []
     if image_path:
         from models.detect import detect
-        dets, ms, err = _timed(detect, image_path)
+        # conf is None unless the request overrode it, in which case detect()
+        # keeps its own configured default rather than being handed a null.
+        dets, ms, err = (_timed(detect, image_path) if conf is None
+                         else _timed(detect, image_path, conf))
         if err:
             stages.append(Stage("detection", ok=False, ms=ms, error=err))
         else:
@@ -87,28 +91,49 @@ def _run(
 
     # ---------------- D7: risk ----------------
     # Before generation, so a detected defect can be named in the query below.
-    from models.risk import score_risk, score_telemetry, worst_risk
-    risks = [score_risk(d["label"], d["confidence"]) for d in detections]
+    from models.risk import (match_symptom, score_reported, score_risk,
+                             score_telemetry, worst_risk, SEVERITY, LEVELS)
+
+    # Filter out non-aviation generic objects if using pretrained COCO model
+    defect_detections = [
+        d for d in detections
+        if not d.get("pretrained") or d["label"].lower() in SEVERITY
+    ]
+    risks = [score_risk(d["label"], d["confidence"]) for d in defect_detections]
     overall = worst_risk(risks)
+
+    reported: Optional[str] = None
+    defect_label = "Detected defect"
+    if query:
+        m = match_symptom(query)
+        if m:
+            reported = m[0]
+            rep_risk = score_reported(reported)
+            # The worst finding governs: if reported defect is worse or nothing was detected
+            if overall is None or (rep_risk and LEVELS.index(rep_risk["level"]) > LEVELS.index(overall["level"])):
+                overall = rep_risk
+                defect_label = f"Reported defect: {reported} (from description)"
+            elif overall is not None:
+                defect_label = f"Detected defect: {overall['severity']} ({reported} also reported)"
 
     # Telemetry scoring runs even with zero detections — otherwise the risk
     # panel is empty on every text-only diagnosis, which is the common case.
     telemetry = telemetry or {}
-    scored = score_telemetry(telemetry, overall)
-    has_risk_input = bool(risks) or scored["scored_parameters"] > 0
+    scored = score_telemetry(telemetry, overall, defect_label)
+    has_risk_input = bool(risks) or scored["scored_parameters"] > 0 or overall is not None
     stages.append(Stage(
         "risk", ok=True, skipped=not has_risk_input,
-        note=None if has_risk_input else "no detections and no telemetry to score",
+        note=None if has_risk_input else "no detections, no reported defect, and no telemetry to score",
     ))
     yield ("stage", stages[-1].to_json())
 
     # ---------------- D4: retrieval + grounded diagnosis ----------------
     diagnosis: dict = {}
-    if query or detections:
+    if query or defect_detections:
         # A detected defect sharpens retrieval even when the technician typed little.
         effective = query
-        if detections:
-            labels = ", ".join(sorted({d["label"] for d in detections[:3]}))
+        if defect_detections:
+            labels = ", ".join(sorted({d["label"] for d in defect_detections[:3]}))
             effective = f"{query}\n\nDetected in image: {labels}".strip()
 
         from models.rag import diagnose
@@ -159,6 +184,15 @@ def _run(
         # 0-100 score + per-parameter breakdown (telemetry + any defect).
         "risk_assessment": scored if has_risk_input else None,
         "telemetry": {k: v for k, v in telemetry.items() if v not in (None, "")},
+        # The defect term matched in the typed symptom, when the detector found
+        # nothing. The UI must present this as reported, not detected.
+        "reported_defect": reported,
+        # True when an image was supplied and detection ran but returned nothing
+        # — so the score carries NO visual contribution and should say so.
+        "vision_found_nothing": bool(image_path) and not detections,
+        # Echoed back so the UI and the printed report can state the threshold
+        # the boxes were produced at. None = detect.py's configured default.
+        "detection_conf": conf,
         # D9-01 step 4 names a single `risk_score` field. `overall_risk` carries
         # the full object because one string cannot express "three scratches and
         # one crack" — averaging would let the crack hide. This alias keeps the
@@ -186,10 +220,11 @@ def run_diagnosis(
     query: str = "",
     k: int = 3,
     telemetry: Optional[dict] = None,
+    conf: Optional[float] = None,
 ) -> dict:
     """Run every stage and return one combined response (POST /diagnose)."""
     payload: dict = {}
-    for kind, data in _run(image_path, query, k, telemetry):
+    for kind, data in _run(image_path, query, k, telemetry, conf):
         if kind == "result":
             payload = data
     return payload
@@ -200,6 +235,7 @@ def run_diagnosis_stream(
     query: str = "",
     k: int = 3,
     telemetry: Optional[dict] = None,
+    conf: Optional[float] = None,
 ):
     """Same pipeline, emitting each stage as it completes (POST /diagnose/stream).
 
@@ -208,7 +244,7 @@ def run_diagnosis_stream(
     whole run and then everything at once. The timings reported are the real
     measured ones — nothing here fakes progress.
     """
-    yield from _run(image_path, query, k, telemetry)
+    yield from _run(image_path, query, k, telemetry, conf)
 
 
 def pipeline_info() -> dict:
@@ -220,6 +256,7 @@ def pipeline_info() -> dict:
         from models.retrieval import corpus_stats
         out["corpus"] = corpus_stats()
     except Exception as e:                      # noqa: BLE001
+        import traceback; traceback.print_exc()
         out["corpus"] = {"available": False, "reason": f"{type(e).__name__}: {e}"}
     try:
         from models.detect import detector_info
@@ -230,6 +267,7 @@ def pipeline_info() -> dict:
         from models.case_memory import case_memory_info
         out["case_memory"] = case_memory_info()
     except Exception as e:                      # noqa: BLE001
+        import traceback; traceback.print_exc()
         out["case_memory"] = {"available": False, "reason": f"{type(e).__name__}: {e}"}
     out["ready"] = bool(out["llm"].get("available") and out["corpus"].get("available"))
     return out
